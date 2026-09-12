@@ -28,10 +28,16 @@ def test_toda_serie_sgs_tem_codigo_e_toda_focus_tem_indicador():
             assert serie.recurso and serie.indicador
 
 
-def test_series_do_focus_ainda_nao_estao_implementadas():
-    """Guarda contra ingerir Focus antes do cliente existir (semana 2)."""
-    ids = {s.id for s in config.series_da_fonte("sgs")}
-    assert not any(i.startswith("focus_") for i in ids)
+def test_focus_usa_uma_unica_base_de_calculo():
+    """Misturar baseCalculo 0 e 1 compara amostras diferentes de respondentes."""
+    bases = {s.base_calculo for s in config.series_da_fonte("focus")}
+    assert bases == {0}
+
+
+def test_focus_tem_periodicidade_com_janela_definida():
+    from ciclo_br.ingestion.focus import JANELA_MESES
+    for serie in config.series_da_fonte("focus"):
+        assert serie.periodicidade in JANELA_MESES
 
 
 def test_ficha_sem_unidade_e_rejeitada(tmp_path):

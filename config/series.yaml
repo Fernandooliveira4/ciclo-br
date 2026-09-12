@@ -46,6 +46,7 @@ series:
     periodicidade: mensal
     ajuste_sazonal: origem
     inicio: 2003-01
+    frescor_max_dias: 135   # sai ~45 dias apos o mes de referencia
     papel: eixo_crescimento
     transformacao: variacao % 3m/3m anualizada
     notas: >
@@ -62,6 +63,7 @@ series:
     periodicidade: mensal
     ajuste_sazonal: nao_aplicavel
     inicio: 2003-01
+    frescor_max_dias: 135
     papel: contexto
     transformacao: variacao % interanual
     notas: >
@@ -92,6 +94,7 @@ series:
     periodicidade: mensal
     ajuste_sazonal: origem
     inicio: 2002-01
+    frescor_max_dias: 135
     papel: contexto
     transformacao: variacao % 3m/3m anualizada
     notas: >
@@ -106,6 +109,7 @@ series:
     periodicidade: mensal
     ajuste_sazonal: nao_aplicavel
     inicio: 2002-01
+    frescor_max_dias: 135
     papel: contexto
     transformacao: variacao % interanual
 
@@ -141,6 +145,7 @@ series:
     papel: auditoria
     transformacao: nenhuma
     status: confirmado
+    encerrada: true   # congelada em nov/2025 por design: nao envelhece
     notas: >
       O BCB congelou as versoes antigas dos nucleos em codigos separados (29675, 29677-29682),
       encerradas em nov/2025, enquanto os codigos canonicos seguem com a metodologia nova.
@@ -220,7 +225,7 @@ series:
     ajuste_sazonal: nao_aplicavel
     papel: surpresa
     base_calculo: 0
-    status: planejado_s2
+    inicio: 2003-01
     notas: >
       baseCalculo fixado em 0 (janela de apuracao com amostra maior) e nunca misturado com 1.
       Consenso relevante = mediana da ultima coleta ANTERIOR a data de divulgacao.
@@ -229,27 +234,32 @@ series:
     nome: Focus - expectativa de taxa de desocupacao mensal (mediana)
     fonte: focus
     recurso: ExpectativaMercadoMensais
-    indicador: Taxa de desocupacao
+    indicador: Taxa de desocupação   # literal exato do filtro OData: acentos importam
     bloco: expectativas
     unidade: "%"
     periodicidade: mensal
     ajuste_sazonal: nao_aplicavel
     papel: surpresa
     base_calculo: 0
-    status: planejado_s2
+    inicio: 2021-08
+    notas: >
+      Verificado em 12/09/2026: o Focus so passou a pesquisar expectativa de desocupacao
+      em agosto de 2021, apesar de a PNAD Continua existir desde 2012. A surpresa do lado
+      da atividade tem, portanto, apenas cinco anos de historico por esta serie; o PIB
+      trimestral cobre desde 2002 e e o complemento. Ver docs/metodologia.md.
 
   - id: focus_cambio_mensal
     nome: Focus - expectativa de cambio mensal (mediana)
     fonte: focus
     recurso: ExpectativaMercadoMensais
-    indicador: Cambio
+    indicador: Câmbio   # literal exato do filtro OData: acentos importam
     bloco: expectativas
     unidade: BRL/USD
     periodicidade: mensal
     ajuste_sazonal: nao_aplicavel
     papel: surpresa
     base_calculo: 0
-    status: planejado_s2
+    inicio: 2003-01
 
   - id: focus_pib_trimestral
     nome: Focus - expectativa de PIB Total trimestral (mediana)
@@ -262,6 +272,19 @@ series:
     ajuste_sazonal: nao_aplicavel
     papel: surpresa
     base_calculo: 0
-    status: planejado_s2
+    inicio: 2003-01
     notas: >
       Unica medida de surpresa do lado do crescimento: nao existe consenso Focus para o IBC-Br.
+
+# ---------------------------------------------------------------------------
+# Calendario de divulgacoes do IBGE (API v3 de calendario).
+# Papel auxiliar: alimenta o painel "proximas divulgacoes" e adensa o polling.
+# NAO dispara ingestao - a fonte da verdade e sempre o diff da propria serie.
+# Cada produto_id e mapeado para as series que ele alimenta.
+# ---------------------------------------------------------------------------
+calendario:
+  produtos:
+    9256: [ipca, ipca_12m]          # Indice Nacional de Precos ao Consumidor Amplo
+    9171: [desocupacao]             # PNAD Continua - divulgacao mensal
+    9294: [pim, pim_sa]             # PIM-PF Brasil
+    9300: [ibcbr, ibcbr_sa]         # Contas Nacionais Trimestrais (PIB)

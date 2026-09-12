@@ -93,7 +93,73 @@ lado das *expectativas*, via API do Focus, que é point-in-time por construção
 
 ---
 
-## 5. Validação
+## 5. Medida de surpresa
+
+**Definição.** Surpresa = valor realizado − mediana do Focus vigente na véspera da
+divulgação. A unidade é a mesma do indicador (p.p. para inflação), o que torna a
+medida interpretável sem normalização.
+
+**Por que surpresa e não outlier estatístico.** Um detector de outlier responde
+"esse número é raro" — e o IPCA de janeiro é sempre alto, então ele gritaria todo
+janeiro. A pergunta que uma mesa faz é outra: o número foi diferente do que o
+mercado esperava? Só a segunda tem conteúdo econômico.
+
+**Como o consenso da véspera é reconstruído.** A API de Expectativas do Banco
+Central é point-in-time por construção: cada linha traz `Data` (a data da
+apuração, diária) e `DataReferencia` (o período projetado). O consenso relevante é
+a última mediana apurada **antes** da data de divulgação. O armazenamento
+append-only guarda essa trajetória sem sobrescrever nada, e a consulta é um
+`ORDER BY data_coleta DESC LIMIT 1` com corte na data do release.
+
+**Decisões de apuração.**
+
+- `baseCalculo` fixado em **0** e nunca misturado com 1. São janelas de apuração
+  diferentes, com números de respondentes diferentes (140 contra 41 numa amostra
+  de setembro de 2026); alternar entre elas compararia populações distintas.
+- Guardamos apenas os períodos de referência a até um mês da coleta (seis meses,
+  no trimestral). A API devolve 25 meses de projeção por coleta, mas o projeto só
+  usa o consenso do período prestes a ser divulgado; o resto seriam ~160 mil
+  linhas por indicador que nenhuma parte do sistema consulta.
+- Mediana repetida não gera linha nova: se o consenso não mudou, não houve
+  notícia.
+
+**Cobertura, com a limitação medida.**
+
+| Série de expectativa | Coletas desde |
+|---|---|
+| IPCA mensal | jan/2003 |
+| Câmbio mensal | jan/2003 |
+| PIB total trimestral | jan/2003 |
+| Taxa de desocupação mensal | **set/2021** |
+
+A desocupação é a única variável cíclica com consenso mensal — não existe Focus
+para o IBC-Br — e ela só passou a ser pesquisada em 2021. Na prática, o pilar de
+surpresa é forte do lado da inflação e curto do lado da atividade, onde se apoia
+em cinco anos de desocupação mais o PIB trimestral. Isso é limitação de fonte, não
+escolha de desenho, e está declarado aqui em vez de escondido atrás de um gráfico.
+
+---
+
+## 6. Detecção de divulgação
+
+O gatilho é o **diff da própria série**: a cada execução as APIs são reconsultadas
+sobre uma janela recente e comparadas com o que já está gravado. Observação
+inédita ou valor alterado disparam; caso contrário o pipeline não escreve nada.
+
+Duas consequências desse desenho:
+
+1. **Revisão retroativa é capturada de graça.** O mesmo mecanismo que detecta dado
+   novo detecta o Banco Central mexendo num mês antigo — um evento que interessa a
+   economista e que praticamente nenhum painel registra.
+2. **Não há dependência crítica de calendário.** O calendário do IBGE é consultado,
+   mas só alimenta o painel de próximas divulgações e adensa a frequência de
+   consulta. Se ele sair do ar, a ingestão continua. O calendário do Banco Central
+   existe, porém é endpoint interno do site, sem contrato público, e por isso ficou
+   de fora.
+
+---
+
+## 7. Validação
 
 A cronologia oficial de ciclos do CODACE (FGV/IBRE) não é publicada em formato
 estruturado — é imagem e comunicados em PDF — e será transcrita à mão para um CSV
@@ -116,7 +182,7 @@ o comitê, na época, não tinha.
 
 ---
 
-## 6. Registro de decisões
+## 8. Registro de decisões
 
 | Data | Decisão | Motivo |
 |---|---|---|
@@ -124,3 +190,8 @@ o comitê, na época, não tinha.
 | 2026-09-12 | Núcleo 4466 no eixo de inflação | choque de oferta não é mudança de regime |
 | 2026-09-12 | Armazenamento append-only em Parquet versionado no Git | revisão vira evento observável; constrói vintages próprios |
 | 2026-09-12 | Sem emenda na quebra dos núcleos | auditoria mostrou histórico recalculado (seção 3) |
+| 2026-09-12 | Surpresa vs. Focus em vez de outlier estatístico | outlier não tem conteúdo econômico |
+| 2026-09-12 | `baseCalculo` 0, nunca misturado com 1 | são amostras de respondentes diferentes |
+| 2026-09-12 | Guardar só a janela útil de referência do Focus | 90% do volume é projeção que o projeto não usa |
+| 2026-09-12 | Diff da série como único gatilho; calendário auxiliar | evita ponto único de falha e captura revisão de graça |
+| 2026-09-12 | Portões de qualidade reprovam o build | pipeline que quebra alto vale mais que um que grava lixo em silêncio |

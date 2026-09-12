@@ -1,0 +1,73 @@
+name: Ingestão diária
+
+# O agendamento é o coração do projeto: o pipeline acorda todo dia, compara o
+# que as APIs devolvem com o que já está gravado, e só produz commit quando há
+# observação nova ou revisão. Na maior parte dos dias a mensagem é
+# "ingest: sem dado novo" — e isso é o comportamento correto, não uma falha.
+#
+# O repositório é o banco de dados, então o commit de volta não é um detalhe de
+# operação: é a gravação em si, e o histórico do Git vira o histórico de coletas.
+
+on:
+  schedule:
+    # 09:30 e 14:00 em Brasília (UTC-3). O IBGE divulga às 9h, e a segunda
+    # passada pega republicação e revisão do mesmo dia.
+    - cron: "30 12 * * 1-5"
+    - cron: "0 17 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      backfill:
+        description: "Rebaixar desde o início de cada série"
+        type: boolean
+        default: false
+
+# Duas execuções simultâneas escreveriam no mesmo Parquet e brigariam pelo push.
+concurrency:
+  group: ingestao
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  coletar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar
+        run: pip install -e .
+
+      - name: Coletar séries
+        run: |
+          ciclo-ingest ${{ inputs.backfill && '--backfill' || '' }} \
+            --resumo-arquivo "$RUNNER_TEMP/resumo.txt"
+
+      # Auxiliar: se o calendário falhar, o próprio comando devolve 0 e o
+      # pipeline segue. Ele não dispara nada — quem manda é o diff da série.
+      - name: Atualizar calendário de divulgações
+        run: ciclo-calendario
+
+      - name: Portões de qualidade
+        run: ciclo-qualidade
+
+      - name: Publicar o que mudou
+        run: |
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "Nada mudou — nenhum commit."
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -F "$RUNNER_TEMP/resumo.txt"
+          git push
+
+      - name: Resumo da execução
+        if: always()
+        run: cat "$RUNNER_TEMP/resumo.txt" >> "$GITHUB_STEP_SUMMARY" || true

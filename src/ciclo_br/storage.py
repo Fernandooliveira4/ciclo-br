@@ -64,14 +64,16 @@ class ResultadoAnexo:
     novas: int
     revisoes: int
     inalteradas: int
+    ignoradas: int = 0  # coletas anteriores à última gravada (só ocorre no Focus)
 
     @property
     def gravadas(self) -> int:
         return self.novas + self.revisoes
 
     def __str__(self) -> str:
-        return (f"{self.serie_id}: {self.novas} novas, {self.revisoes} revisões, "
-                f"{self.inalteradas} inalteradas")
+        texto = (f"{self.serie_id}: {self.novas} novas, {self.revisoes} revisões, "
+                 f"{self.inalteradas} inalteradas")
+        return texto + (f", {self.ignoradas} ignoradas" if self.ignoradas else "")
 
 
 def novo_execucao_id() -> str:
@@ -111,48 +113,81 @@ def anexar(
     execucao_id: str,
     coletado_em: dt.datetime | None = None,
 ) -> ResultadoAnexo:
-    """Grava apenas o que é inédito ou foi revisado.
+    """Grava apenas o que é inédito ou mudou de valor.
 
-    `observacoes` precisa ter as colunas data_referencia (date) e valor (float).
-    Observação já conhecida com o mesmo valor não gera linha: sem isso o arquivo
-    cresceria a cada execução diária sem informação nova.
+    `observacoes` precisa ter data_referencia (date) e valor (float). Observação
+    já conhecida com o mesmo valor não gera linha: sem isso o arquivo cresceria a
+    cada execução diária sem informação nova.
+
+    A coluna `data_coleta` é opcional e muda o significado da operação:
+
+    - **ausente** (caso do SGS): a coleta é agora, e o que interessa é comparar o
+      valor com a última versão conhecida. Uma diferença é uma revisão da fonte.
+
+    - **presente** (caso do Focus): a data da coleta faz parte da identidade da
+      observação — o consenso de terça e o de quarta são fatos distintos, não um
+      corrigindo o outro. Aqui só entram coletas posteriores à última já gravada;
+      coletas antigas são ignoradas, porque reescrever o passado destruiria
+      justamente o que o armazenamento existe para preservar.
+
+    Em ambos os casos o contador `revisoes` significa "o valor mudou desde a
+    última vez que olhamos" — revisão do dado no SGS, revisão de projeção no Focus.
     """
     if observacoes.empty:
         return ResultadoAnexo(serie_id, 0, 0, 0)
 
-    coletado_em = coletado_em or dt.datetime.now(dt.UTC)
-    entrada = observacoes[["data_referencia", "valor"]].copy()
+    por_linha = "data_coleta" in observacoes.columns
+    entrada = observacoes.copy()
     entrada["data_referencia"] = pd.to_datetime(entrada["data_referencia"]).dt.date
     entrada["valor"] = entrada["valor"].astype("float64")
-    entrada = entrada.dropna(subset=["valor"]).drop_duplicates(
-        "data_referencia", keep="last"
-    )
+    entrada = entrada.dropna(subset=["valor"])
+
+    if por_linha:
+        entrada["data_coleta"] = pd.to_datetime(entrada["data_coleta"], utc=True)
+        entrada = entrada.drop_duplicates(["data_referencia", "data_coleta"], keep="last")
+        entrada = entrada.sort_values(["data_referencia", "data_coleta"], kind="stable")
+    else:
+        entrada["data_coleta"] = coletado_em or dt.datetime.now(dt.UTC)
+        entrada = entrada.drop_duplicates("data_referencia", keep="last")
 
     vigente = ler_vigente(serie_id)
-    conhecidos: dict[dt.date, float] = (
+    conhecidos: dict[dt.date, tuple[float, object]] = (
         {} if vigente.empty
-        else dict(zip(vigente["data_referencia"], vigente["valor"], strict=True))
+        else {
+            ref: (val, quando)
+            for ref, val, quando in zip(
+                vigente["data_referencia"], vigente["valor"], vigente["data_coleta"],
+                strict=True,
+            )
+        }
     )
 
-    novas, revisoes, inalteradas = [], [], 0
-    for data_ref, valor in zip(entrada["data_referencia"], entrada["valor"], strict=True):
-        anterior = conhecidos.get(data_ref)
+    a_gravar: list[tuple] = []
+    novas = revisoes = inalteradas = ignoradas = 0
+    for linha in entrada.itertuples(index=False):
+        anterior = conhecidos.get(linha.data_referencia)
         if anterior is None:
-            novas.append((data_ref, valor))
-        elif abs(anterior - valor) > TOLERANCIA:
-            revisoes.append((data_ref, valor))
+            novas += 1
         else:
-            inalteradas += 1
+            valor_anterior, coleta_anterior = anterior
+            if por_linha and linha.data_coleta <= coleta_anterior:
+                ignoradas += 1
+                continue
+            if abs(valor_anterior - linha.valor) > TOLERANCIA:
+                revisoes += 1
+            else:
+                inalteradas += 1
+                continue
+        a_gravar.append((linha.data_referencia, linha.valor, linha.data_coleta))
+        conhecidos[linha.data_referencia] = (linha.valor, linha.data_coleta)
 
-    a_gravar = novas + revisoes
     if a_gravar:
-        linhas = pd.DataFrame(a_gravar, columns=["data_referencia", "valor"])
+        linhas = pd.DataFrame(a_gravar, columns=["data_referencia", "valor", "data_coleta"])
         linhas.insert(0, "serie_id", serie_id)
-        linhas["data_coleta"] = coletado_em
         linhas["execucao_id"] = execucao_id
         _acrescentar_parquet(caminho_serie(serie_id), linhas, ESQUEMA)
 
-    return ResultadoAnexo(serie_id, len(novas), len(revisoes), inalteradas)
+    return ResultadoAnexo(serie_id, novas, revisoes, inalteradas, ignoradas)
 
 
 def registrar_execucao(

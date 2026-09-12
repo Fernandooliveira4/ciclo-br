@@ -106,6 +106,23 @@ def catalogo() -> dict[str, Serie]:
     return carregar()
 
 
+@lru_cache(maxsize=1)
+def calendario_produtos(caminho: Path | None = None) -> dict[int, list[str]]:
+    """Mapa produto_id do IBGE -> ids de série que aquele produto alimenta."""
+    caminho = caminho or CAMINHO_SERIES
+    dados = yaml.safe_load(caminho.read_text(encoding="utf-8"))
+    produtos = (dados.get("calendario") or {}).get("produtos") or {}
+
+    conhecidas = catalogo()
+    for produto_id, ids in produtos.items():
+        orfas = [i for i in ids if i not in conhecidas]
+        if orfas:
+            raise FichaInvalida(
+                f"calendário: produto {produto_id} aponta para série sem ficha: {orfas}"
+            )
+    return {int(k): list(v) for k, v in produtos.items()}
+
+
 def series_da_fonte(fonte: str, *, apenas_implementadas: bool = True) -> list[Serie]:
     return [
         s for s in catalogo().values()

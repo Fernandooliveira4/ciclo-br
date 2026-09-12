@@ -7,7 +7,11 @@ O projeto coleta séries oficiais do Banco Central, classifica o estado do ciclo
 em quadrantes de crescimento × inflação, mede a surpresa de cada divulgação
 contra o consenso do Focus, e publica um briefing — mas só quando há dado novo.
 
-> **Status:** em construção. Semana 1 de 8 concluída (ingestão e armazenamento).
+![CI](https://github.com/Fernandooliveira4/ciclo-br/actions/workflows/ci.yml/badge.svg)
+![Ingestão](https://github.com/Fernandooliveira4/ciclo-br/actions/workflows/ingest.yml/badge.svg)
+
+> **Status:** em construção. Semanas 1 e 2 de 8 concluídas — ingestão, armazenamento,
+> expectativas do Focus, calendário e agendamento automático.
 > O roteiro completo está em [Roadmap](#roadmap).
 
 ---
@@ -93,8 +97,11 @@ pip install -e ".[dev]"
 
 ```bash
 ciclo-ingest --backfill          # carga inicial, desde o início de cada série
-ciclo-ingest                     # incremental: rebaixa 24 meses à caça de revisões
+ciclo-ingest                     # incremental: o modo do agendamento diário
+ciclo-ingest --fonte focus       # só as expectativas
 ciclo-ingest --serie ipca        # uma série só
+ciclo-calendario                 # próximas divulgações do IBGE
+ciclo-qualidade                  # portões de qualidade (código 1 reprova)
 pytest                           # suíte de testes
 ```
 
@@ -123,7 +130,9 @@ Estão detalhadas em [docs/metodologia.md](docs/metodologia.md). As principais:
   o que não estava está declarado.
 - A validação tem **três recessões**. Essa é a razão de não haver modelo estimado.
 - Não há consenso do Focus para o IBC-Br. A surpresa do lado da atividade é medida
-  pela **taxa de desocupação** (mensal) e pelo **PIB** (trimestral).
+  pela **taxa de desocupação** (mensal) e pelo **PIB** (trimestral) — e o Focus só
+  passou a pesquisar desocupação em **agosto de 2021**, então essa metade tem cinco
+  anos de história, não vinte.
 - O CODACE anuncia com meses de atraso; o classificador "ganhar" do comitê não é
   mérito, e isso está dito em vez de escondido.
 
@@ -134,7 +143,7 @@ Estão detalhadas em [docs/metodologia.md](docs/metodologia.md). As principais:
 | Semana | Entrega | Status |
 |---|---|---|
 | 1 | Fichas das séries, cliente SGS, armazenamento append-only, backfill | ✅ concluída |
-| 2 | Cliente Focus, calendário IBGE, GitHub Actions em cron, portões de qualidade | — |
+| 2 | Cliente Focus, calendário IBGE, GitHub Actions em cron, portões de qualidade | ✅ concluída |
 | 3 | Ajuste sazonal recursivo, momentum, auditoria da quebra dos núcleos | parcial: [auditoria feita](docs/metodologia.md#3-auditoria-da-quebra-metodológica-dos-núcleos-dez2025) |
 | 4 | Classificador de quadrante | — |
 | 5 | Transcrição do CODACE e medição de defasagem | — |

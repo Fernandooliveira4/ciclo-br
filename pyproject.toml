@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ciclo-br"
+version = "0.1.0"
+description = "Classificador de regime macroeconômico brasileiro com pipeline reprodutível"
+requires-python = ">=3.11"
+dependencies = [
+    "requests>=2.32",
+    "tenacity>=9.0",
+    "PyYAML>=6.0",
+    "pandas>=2.2",
+    "pyarrow>=18.0",
+    "duckdb>=1.1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.3", "ruff>=0.8"]
+
+[project.scripts]
+ciclo-ingest = "ciclo_br.ingestion.run:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

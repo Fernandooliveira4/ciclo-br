@@ -1,0 +1,5 @@
+# Normaliza finais de linha: o repositorio guarda LF, o checkout usa o do sistema.
+* text=auto eol=lf
+
+# Parquet e binario e nunca deve ser tratado como texto nem sofrer diff textual.
+*.parquet binary

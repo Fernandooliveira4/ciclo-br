@@ -1,0 +1,267 @@
+# ---------------------------------------------------------------------------
+# Fichas das séries do projeto.
+#
+# REGRA DURA: nenhuma série entra no projeto sem ficha completa aqui.
+# Se não se sabe escrever a unidade, a transformação e o porquê dela existir,
+# ela não entra. Esta regra é a proteção contra o inchaço de escopo.
+#
+# ajuste_sazonal:
+#   origem        -> a fonte já publica dessazonalizado
+#   proprio       -> dessazonalizamos nós, em janela expansiva (ver metodologia)
+#   nao_aplicavel -> série que não pede ajuste (juros, câmbio, expectativas)
+#
+# papel:
+#   eixo_crescimento / eixo_inflacao -> alimentam o classificador de regime
+#   contexto                         -> exibição e conferência
+#   auditoria                        -> existe para checar quebra metodológica
+#   surpresa                         -> pareada com o realizado para medir surpresa
+# ---------------------------------------------------------------------------
+versao: 1
+
+fontes:
+  sgs:
+    nome: Sistema Gerenciador de Séries Temporais do Banco Central
+    base_url: https://api.bcb.gov.br/dados/serie/bcdata.sgs.{codigo}/dados
+    busca: https://www3.bcb.gov.br/sgspub/localizarseries/localizarSeries.do?method=prepararTelaLocalizarSeries
+    limite: >
+      Desde 26/03/2025 cada consulta cobre no máximo 10 anos; o cliente fatia em
+      janelas de 9 anos.
+  focus:
+    nome: API de Expectativas de Mercado do Banco Central (Olinda/OData)
+    base_url: https://olinda.bcb.gov.br/olinda/servico/Expectativas/versao/v1/odata/
+    doc: https://olinda.bcb.gov.br/olinda/servico/Expectativas/versao/v1/documentacao
+    nota: >
+      O campo Data e a data da coleta (diaria) e DataReferencia e o periodo projetado.
+      E isso que permite reconstruir o consenso vigente na vespera de uma divulgacao.
+
+series:
+
+  # ---------------------------------------------------------------- ATIVIDADE
+  - id: ibcbr_sa
+    fonte: sgs
+    codigo: 24364
+    nome: IBC-Br - com ajuste sazonal
+    bloco: atividade
+    unidade: indice
+    periodicidade: mensal
+    ajuste_sazonal: origem
+    inicio: 2003-01
+    papel: eixo_crescimento
+    transformacao: variacao % 3m/3m anualizada
+    notas: >
+      Eixo de crescimento do classificador. Dessazonalizado na fonte (BCB-Depec), o que
+      dispensa ajuste proprio, mas tambem significa que o ajuste da fonte usa amostra
+      completa. Ver limitacao declarada na pagina de Metodologia.
+
+  - id: ibcbr
+    fonte: sgs
+    codigo: 24363
+    nome: IBC-Br
+    bloco: atividade
+    unidade: indice
+    periodicidade: mensal
+    ajuste_sazonal: nao_aplicavel
+    inicio: 2003-01
+    papel: contexto
+    transformacao: variacao % interanual
+    notas: >
+      Serie sem ajuste, mantida para conferencia visual contra a versao dessazonalizada.
+
+  - id: desocupacao
+    fonte: sgs
+    codigo: 24369
+    nome: Taxa de desocupacao - PNAD Continua (trimestre movel)
+    bloco: atividade
+    unidade: "% da forca de trabalho"
+    periodicidade: mensal
+    ajuste_sazonal: proprio
+    inicio: 2012-03
+    papel: contexto
+    transformacao: nivel dessazonalizado em janela expansiva
+    notas: >
+      Nao ha serie nacional dessazonalizada no SGS (confirmado): o ajuste e nosso.
+      Variavel ciclica que tem expectativa mensal no Focus, e por isso sustenta o pilar
+      de surpresa do lado da atividade, ja que nao existe consenso Focus para o IBC-Br.
+
+  - id: pim_sa
+    fonte: sgs
+    codigo: 28503
+    nome: Producao industrial - geral - dados dessazonalizados
+    bloco: atividade
+    unidade: indice (2022=100)
+    periodicidade: mensal
+    ajuste_sazonal: origem
+    inicio: 2002-01
+    papel: contexto
+    transformacao: variacao % 3m/3m anualizada
+    notas: >
+      Checagem independente do eixo de crescimento; comeca um ano antes do IBC-Br.
+
+  - id: pim
+    fonte: sgs
+    codigo: 21859
+    nome: Producao industrial - geral
+    bloco: atividade
+    unidade: indice (2022=100)
+    periodicidade: mensal
+    ajuste_sazonal: nao_aplicavel
+    inicio: 2002-01
+    papel: contexto
+    transformacao: variacao % interanual
+
+  # ---------------------------------------------------------------- INFLACAO
+  - id: ipca_nucleo_ma_suav
+    fonte: sgs
+    codigo: 4466
+    nome: IPCA - nucleo por medias aparadas com suavizacao
+    bloco: inflacao
+    unidade: "% ao mes"
+    periodicidade: mensal
+    ajuste_sazonal: proprio
+    inicio: null   # a confirmar no primeiro backfill
+    papel: eixo_inflacao
+    transformacao: media movel de 3 meses dessazonalizada e anualizada
+    notas: >
+      Eixo de inflacao do classificador. Nucleo, e nao IPCA cheio, para que choque de
+      alimento e combustivel nao seja lido como mudanca de regime.
+      Houve mudanca metodologica nos nucleos em dez/2025, auditada em 12/09/2026 contra a
+      versao congelada (29675): 358 meses sobrepostos, 3 divergencias de no maximo 0.01 p.p.
+      O BCB recalculou o historico, entao a serie e usada inteira, sem emenda.
+      Ver docs/metodologia.md.
+
+  - id: ipca_nucleo_ma_suav_v2025
+    fonte: sgs
+    codigo: 29675
+    nome: IPCA - nucleo (versao divulgada ate dez/2025)
+    bloco: inflacao
+    unidade: "% ao mes"
+    periodicidade: mensal
+    ajuste_sazonal: nao_aplicavel
+    inicio: null
+    papel: auditoria
+    transformacao: nenhuma
+    status: confirmado
+    notas: >
+      O BCB congelou as versoes antigas dos nucleos em codigos separados (29675, 29677-29682),
+      encerradas em nov/2025, enquanto os codigos canonicos seguem com a metodologia nova.
+      Auditado em 12/09/2026: cobre fev/1996 a nov/2025 e coincide com 4466 em 355 dos 358
+      meses sobrepostos (maior diferenca 0.01 p.p., compativel com arredondamento).
+      Conclusao: 29675 e a versao congelada de 4466 e o historico foi recalculado, logo nao
+      ha emenda a fazer. A serie fica no projeto como evidencia da auditoria, nao como insumo.
+
+  - id: ipca
+    fonte: sgs
+    codigo: 433
+    nome: IPCA - variacao mensal
+    bloco: inflacao
+    unidade: "% ao mes"
+    periodicidade: mensal
+    ajuste_sazonal: nao_aplicavel
+    inicio: 1980-01
+    papel: surpresa
+    transformacao: nenhuma
+    notas: >
+      Realizado que e pareado com a mediana do Focus da vespera para medir surpresa.
+
+  - id: ipca_12m
+    fonte: sgs
+    codigo: 13522
+    nome: IPCA - acumulado em 12 meses
+    bloco: inflacao
+    unidade: "% em 12 meses"
+    periodicidade: mensal
+    ajuste_sazonal: nao_aplicavel
+    inicio: 1980-12
+    papel: contexto
+    transformacao: nenhuma
+    notas: >
+      Exibicao apenas. Deliberadamente NAO alimenta o classificador: acumulado em 12 meses
+      vira de sinal muitos meses depois da virada real da inflacao.
+
+  # -------------------------------------------------- POLITICA E EXPECTATIVAS
+  - id: selic_meta
+    fonte: sgs
+    codigo: 432
+    nome: Taxa de juros - Meta Selic definida pelo Copom
+    bloco: politica
+    unidade: "% ao ano"
+    periodicidade: diaria
+    ajuste_sazonal: nao_aplicavel
+    inicio: 1999-03
+    papel: contexto
+    transformacao: ultimo valor do mes
+    notas: >
+      Instrumento de politica. Contexto do quadrante, nunca criterio de classificacao.
+
+  - id: cambio_ptax_venda
+    fonte: sgs
+    codigo: 1
+    nome: Taxa de cambio - livre - dolar americano (venda) - diario
+    bloco: politica
+    unidade: BRL/USD
+    periodicidade: diaria
+    ajuste_sazonal: nao_aplicavel
+    inicio: 1984-11
+    papel: contexto
+    transformacao: media do mes
+    notas: >
+      Contexto visual. Nivel absoluto de cambio jamais entra em regra de classificacao,
+      que e exatamente o erro que envelhece mal em paineis macro.
+
+  # ---------------------------------------------- EXPECTATIVAS FOCUS (semana 2)
+  - id: focus_ipca_mensal
+    nome: Focus - expectativa de IPCA mensal (mediana)
+    fonte: focus
+    recurso: ExpectativaMercadoMensais
+    indicador: IPCA
+    bloco: expectativas
+    unidade: "% ao mes"
+    periodicidade: mensal
+    ajuste_sazonal: nao_aplicavel
+    papel: surpresa
+    base_calculo: 0
+    status: planejado_s2
+    notas: >
+      baseCalculo fixado em 0 (janela de apuracao com amostra maior) e nunca misturado com 1.
+      Consenso relevante = mediana da ultima coleta ANTERIOR a data de divulgacao.
+
+  - id: focus_desocupacao_mensal
+    nome: Focus - expectativa de taxa de desocupacao mensal (mediana)
+    fonte: focus
+    recurso: ExpectativaMercadoMensais
+    indicador: Taxa de desocupacao
+    bloco: expectativas
+    unidade: "%"
+    periodicidade: mensal
+    ajuste_sazonal: nao_aplicavel
+    papel: surpresa
+    base_calculo: 0
+    status: planejado_s2
+
+  - id: focus_cambio_mensal
+    nome: Focus - expectativa de cambio mensal (mediana)
+    fonte: focus
+    recurso: ExpectativaMercadoMensais
+    indicador: Cambio
+    bloco: expectativas
+    unidade: BRL/USD
+    periodicidade: mensal
+    ajuste_sazonal: nao_aplicavel
+    papel: surpresa
+    base_calculo: 0
+    status: planejado_s2
+
+  - id: focus_pib_trimestral
+    nome: Focus - expectativa de PIB Total trimestral (mediana)
+    fonte: focus
+    recurso: ExpectativasMercadoTrimestrais
+    indicador: PIB Total
+    bloco: expectativas
+    unidade: "% no trimestre"
+    periodicidade: trimestral
+    ajuste_sazonal: nao_aplicavel
+    papel: surpresa
+    base_calculo: 0
+    status: planejado_s2
+    notas: >
+      Unica medida de surpresa do lado do crescimento: nao existe consenso Focus para o IBC-Br.

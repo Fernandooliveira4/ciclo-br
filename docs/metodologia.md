@@ -1,0 +1,126 @@
+# Metodologia
+
+Documento vivo. Cada decisão metodológica entra aqui quando é tomada, com a
+evidência que a sustenta. É desta página que a aba **Metodologia** do dashboard
+é escrita.
+
+---
+
+## 1. O que o projeto afirma, e o que não afirma
+
+O projeto classifica o estado do ciclo macroeconômico brasileiro em quatro
+quadrantes de **crescimento × inflação**, e mede **surpresas** de divulgação
+contra o consenso do Focus.
+
+Ele **não** faz previsão, **não** dá recomendação de investimento, e **não**
+usa modelo de linguagem para decidir nada: o LLM só verbaliza um conjunto de
+fatos já calculados, sem acesso a nenhum número fora deles.
+
+---
+
+## 2. Definição dos eixos
+
+| Eixo | Série | Transformação |
+|---|---|---|
+| Crescimento | IBC-Br com ajuste sazonal (SGS 24364) | variação % 3m/3m anualizada |
+| Inflação | IPCA núcleo por médias aparadas com suavização (SGS 4466) | MM3M dessazonalizada e anualizada |
+
+**Por que momentum e não nível.** "Crescimento alto" e "crescimento acelerando"
+produzem classificações diferentes e às vezes opostas — em 2021 o Brasil teve
+nível altíssimo por efeito-base de 2020 e momentum já em queda. Momentum reage
+cedo e não fica refém da base de comparação.
+
+**Por que núcleo e não IPCA cheio.** Um painel que lê choque de alimento ou
+combustível como mudança de regime erra. O IPCA cheio e o acumulado em 12 meses
+ficam no projeto para exibição, e deliberadamente não alimentam o classificador:
+o acumulado em 12 meses vira de sinal muitos meses depois da virada real.
+
+---
+
+## 3. Auditoria da quebra metodológica dos núcleos (dez/2025)
+
+**Problema.** O Banco Central alterou a metodologia dos núcleos do IPCA e
+congelou as versões anteriores em códigos separados (29675, 29677–29682),
+encerradas em nov/2025, enquanto os códigos canônicos (4466 entre eles) seguem
+com a metodologia nova. Como o eixo de inflação atravessa 1996–2026, uma quebra
+não tratada produziria um degrau artificial bem no trecho mais relevante.
+
+**Teste** (executado em 12/09/2026, sobre o vintage corrente das duas séries):
+
+| | |
+|---|---|
+| Cobertura de 4466 | jul/1994 – ago/2026 (386 meses) |
+| Cobertura de 29675 | fev/1996 – nov/2025 (358 meses) |
+| Meses sobrepostos | 358 |
+| Meses divergentes | 3 |
+| Maior diferença absoluta | 0,01 p.p. |
+
+**Conclusão.** As duas séries são numericamente a mesma no trecho comum, a menos
+de arredondamento. Isso indica que o BCB **recalculou o histórico** sob a nova
+metodologia. Nenhuma emenda é aplicada; 4466 é usada inteira.
+
+**Limitação desta auditoria.** O teste compara o *vintage atual* das duas
+séries. Ele não demonstra que o valor publicado em, digamos, 2010 fosse igual ao
+que a série mostra hoje para 2010 — isso exigiria vintages históricos, que não
+existem publicamente para séries brasileiras (ver seção 4).
+
+A série congelada permanece no projeto como evidência reproduzível da auditoria,
+com papel `auditoria`, e não entra em nenhum cálculo.
+
+---
+
+## 4. Revisões, vintages e viés de look-ahead
+
+**O que não existe.** Não há base de dados em tempo real pública para séries
+macro brasileiras. A API do SGS entrega apenas a revisão corrente; o IPEAData não
+tem dimensão de vintage; o Brasil está ausente dos compêndios internacionais de
+fontes de dados em tempo real. O único vintage sistemático disponível é o do
+lado das *expectativas*, via API do Focus, que é point-in-time por construção.
+
+**Consequências declaradas.**
+
+1. A classificação histórica é **ex-post**. Ela usa a série tal como revisada
+   hoje, e portanto não simula a informação disponível em tempo real.
+2. O ajuste sazonal é feito em **janela expansiva**: para classificar um mês, o
+   dessazonalizador roda apenas com dados até aquele mês. Isso elimina a parte do
+   look-ahead que estava sob nosso controle. A parte que não está — a revisão do
+   dado bruto, e o ajuste sazonal que a própria fonte aplica com amostra completa
+   no IBC-Br e na produção industrial — permanece, e é declarada aqui.
+3. A partir da primeira coleta, o projeto **constrói o próprio banco de
+   vintages**: nada é sobrescrito, e cada observação é gravada com a data em que
+   foi coletada. Revisões retroativas viram linhas novas, não correções
+   silenciosas. Isso não recupera o passado, mas torna o futuro auditável.
+
+---
+
+## 5. Validação
+
+A cronologia oficial de ciclos do CODACE (FGV/IBRE) não é publicada em formato
+estruturado — é imagem e comunicados em PDF — e será transcrita à mão para um CSV
+versionado, com citação do comunicado de origem.
+
+A janela de sobreposição entre o IBC-Br (desde 2003) e a datação do CODACE (que
+termina no vale do 2º tri/2020) contém **três recessões**: 2008-09, 2014-16 e
+2020.
+
+**É por isso que o classificador é uma regra de sinal e não um modelo
+estimado.** Com três eventos de validação, qualquer modelo com muitos parâmetros
+estaria sendo ajustado ao ruído. A métrica principal não é taxa de acerto e sim
+**defasagem**: quantos meses antes ou depois o sinal vira em relação à data
+oficial. Um classificador que acerta todas as recessões cinco meses atrasado é
+inútil, e a matriz de confusão sozinha não mostra isso.
+
+**Assimetria a declarar:** o CODACE anuncia com muitos meses de atraso. Se o
+classificador "ganhar" do comitê, isso não é mérito — ele tem a série completa e
+o comitê, na época, não tinha.
+
+---
+
+## 6. Registro de decisões
+
+| Data | Decisão | Motivo |
+|---|---|---|
+| 2026-09-12 | Eixos por momentum, não por nível | efeito-base contamina o nível |
+| 2026-09-12 | Núcleo 4466 no eixo de inflação | choque de oferta não é mudança de regime |
+| 2026-09-12 | Armazenamento append-only em Parquet versionado no Git | revisão vira evento observável; constrói vintages próprios |
+| 2026-09-12 | Sem emenda na quebra dos núcleos | auditoria mostrou histórico recalculado (seção 3) |

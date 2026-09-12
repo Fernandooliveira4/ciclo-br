@@ -1,0 +1,20 @@
+# Ambiente
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+
+# Segredos — nunca versionar
+.env
+.streamlit/secrets.toml
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# ATENÇÃO: data/raw/*.parquet É versionado de propósito.
+# O repositório é o banco de dados; o histórico do Git é o histórico de coletas.
+*.egg-info/
+build/
+dist/

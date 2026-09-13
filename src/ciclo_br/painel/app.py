@@ -1,4 +1,4 @@
-"""Montagem do painel: cinco páginas, nenhuma delas opcional.
+"""Montagem do painel: seis páginas, nenhuma delas opcional.
 
 A página de **Metodologia** é a razão de o resto existir. Um painel macro que
 mostra um classificador sem mostrar contra o que ele foi validado, com que atraso
@@ -11,10 +11,11 @@ from __future__ import annotations
 import streamlit as st
 
 from . import componentes
-from .paginas import metodologia, regime, series, surpresas, validacao
+from .paginas import briefing, metodologia, regime, series, surpresas, validacao
 
 PAGINAS = (
     (regime.renderizar, "Regime", "🧭", "regime"),
+    (briefing.renderizar, "Briefing", "📝", "briefing"),
     (series.renderizar, "Séries", "📈", "series"),
     (surpresas.renderizar, "Surpresas", "⚡", "surpresas"),
     (validacao.renderizar, "Validação", "🎯", "validacao"),

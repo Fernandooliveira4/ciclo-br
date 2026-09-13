@@ -15,7 +15,9 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
-from .. import componentes, dados, formato
+from ... import artefatos as dados
+from ... import formato
+from .. import componentes
 
 
 @componentes.protegido

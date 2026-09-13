@@ -41,7 +41,9 @@ jobs:
           cache: pip
 
       - name: Instalar
-        run: pip install -e .
+        # O extra `llm` traz o SDK da Anthropic. Sem ele — ou sem a chave — o
+        # briefing sai pelo gerador determinístico e o rodapé diz que saiu.
+        run: pip install -e ".[llm]"
 
       - name: Coletar séries
         run: |
@@ -67,6 +69,14 @@ jobs:
 
       - name: Remedir surpresa das divulgacoes
         run: ciclo-surpresa
+
+      # Compara os fatos de hoje com os do último briefing publicado. Se nada
+      # mudou, não escreve nada — que é o caso na maioria dos dias. A chave é
+      # opcional: sem ela o texto sai do gerador determinístico.
+      - name: Escrever o briefing, se houver o que dizer
+        run: ciclo-briefing
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
       - name: Portões de qualidade
         run: ciclo-qualidade

@@ -14,7 +14,8 @@ from collections.abc import Callable
 
 import streamlit as st
 
-from . import dados, formato
+from .. import artefatos as dados
+from .. import formato
 from .graficos import PALETA
 
 

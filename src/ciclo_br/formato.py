@@ -1,4 +1,9 @@
-"""Formatação em português para a tela.
+"""Formatação em português para a tela e para o texto do briefing.
+
+Mora fora do painel porque os dois consumidores precisam escrever os números do
+mesmo jeito: o briefing cita "+0,7%" e a tela mostra "+0,7%", e a verificação de
+números do briefing compara strings. Duas implementações de "formate isto em
+português" quebrariam essa comparação no primeiro arredondamento divergente.
 
 `locale` não é usado de propósito: o nome do locale muda entre Windows, o runner
 do GitHub Actions e o contêiner do Streamlit Cloud, e um painel que mostra
@@ -51,6 +56,14 @@ def numero(valor, casas: int = 1, *, sinal: bool = False, sufixo: str = "") -> s
         return "—"
     texto = f"{valor:{'+' if sinal else ''}.{casas}f}".replace(".", ",")
     return texto + sufixo
+
+
+def dias(quantidade) -> str:
+    """1 dia, 2 dias."""
+    if quantidade is None:
+        return "—"
+    quantidade = int(quantidade)
+    return f"{quantidade} dia" if abs(quantidade) == 1 else f"{quantidade} dias"
 
 
 def meses(quantidade) -> str:

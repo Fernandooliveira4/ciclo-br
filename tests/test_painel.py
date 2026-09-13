@@ -23,11 +23,14 @@ import pandas as pd
 import pytest
 from streamlit.testing.v1 import AppTest
 
-from ciclo_br.painel import dados, formato, graficos
+from ciclo_br import artefatos as dados
+from ciclo_br import formato
+from ciclo_br.painel import graficos
 
-PAGINAS = ("regime", "series", "surpresas", "validacao", "metodologia")
+PAGINAS = ("regime", "briefing", "series", "surpresas", "validacao",
+           "metodologia")
 
-DIR_PAINEL = Path(dados.__file__).parent
+DIR_PAINEL = Path(graficos.__file__).parent
 
 # Portas para o mundo externo. `requests` é o cliente HTTP do projeto;
 # `ciclo_br.ingestion` é o pacote que fala com o BCB e com o IBGE.
@@ -36,7 +39,30 @@ PROIBIDO_INTERNO = "ingestion"
 
 
 def _modulos_do_painel() -> list[Path]:
-    return sorted(DIR_PAINEL.rglob("*.py"))
+    """Os módulos do painel **e** a camada de leitura que ele consome.
+
+    `artefatos.py` entra na varredura porque é por onde um import de rede
+    chegaria sem passar pelo pacote do painel.
+    """
+    return sorted(DIR_PAINEL.rglob("*.py")) + [Path(dados.__file__)]
+
+
+def test_o_painel_nao_carrega_o_cliente_do_modelo_de_linguagem():
+    """A página de Briefing usa o gerador determinístico, e só ele.
+
+    `ciclo_br.briefing.llm` é o único módulo do projeto que fala com um modelo; o
+    painel monta a reconstrução sem ele, e é isso que mantém a promessa de que a
+    tela sai de arquivo.
+    """
+    import sys
+
+    for modulo in ("ciclo_br.briefing.llm", "anthropic"):
+        sys.modules.pop(modulo, None)
+
+    import ciclo_br.painel.app  # noqa: F401
+
+    assert "ciclo_br.briefing.llm" not in sys.modules
+    assert "anthropic" not in sys.modules
 
 
 # ------------------------------------------------------- a promessa da camada
@@ -102,7 +128,7 @@ def test_cada_pagina_renderiza(nome):
 
 
 def test_o_app_inteiro_sobe():
-    app = AppTest.from_file(str(Path(dados.__file__).parents[3] / "app.py"))
+    app = AppTest.from_file(str(Path(dados.__file__).parents[2] / "app.py"))
     app.run(timeout=90)
     assert not app.exception, [e.message for e in app.exception]
 

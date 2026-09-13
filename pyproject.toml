@@ -22,6 +22,9 @@ dependencies = [
 # precisa de Streamlit para coletar dado. Quem instala o extra é o desenvolvedor,
 # a CI e o Streamlit Cloud.
 painel = ["streamlit>=1.40"]
+# O briefing com modelo de linguagem. Sem isto o gerador determinístico assume,
+# e o rodapé do briefing diz que assumiu.
+llm = ["anthropic>=0.40"]
 dev = ["pytest>=8.3", "ruff>=0.8", "streamlit>=1.40"]
 
 [project.scripts]
@@ -32,6 +35,7 @@ ciclo-transformar = "ciclo_br.transformacao:main"
 ciclo-regime = "ciclo_br.regime:main"
 ciclo-validar = "ciclo_br.validacao:main"
 ciclo-surpresa = "ciclo_br.surpresa:main"
+ciclo-briefing = "ciclo_br.briefing.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

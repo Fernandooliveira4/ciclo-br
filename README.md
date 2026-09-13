@@ -10,10 +10,10 @@ contra o consenso do Focus, e publica um briefing — mas só quando há dado no
 ![CI](https://github.com/Fernandooliveira4/ciclo-br/actions/workflows/ci.yml/badge.svg)
 ![Ingestão](https://github.com/Fernandooliveira4/ciclo-br/actions/workflows/ingest.yml/badge.svg)
 
-> **Status:** em construção. Semanas 1 a 7 de 8 concluídas — ingestão, armazenamento,
-> expectativas do Focus, agendamento automático, o classificador de regime, a
-> validação contra a datação oficial do CODACE, a medida de surpresa por divulgação
-> e o painel. Falta o briefing automatizado.
+> **Status:** as oito semanas do roteiro estão concluídas — ingestão com data de
+> coleta, camada derivada em janela expansiva, classificador de regime, validação
+> contra a datação oficial do CODACE, surpresa por divulgação, painel e briefing
+> automatizado. O projeto segue coletando todo dia útil.
 > O roteiro completo está em [Roadmap](#roadmap).
 
 ---
@@ -23,12 +23,17 @@ contra o consenso do Focus, e publica um briefing — mas só quando há dado no
 A maior parte dos dashboards macro de portfólio empilha gráficos e detecta
 outliers estatísticos. Cinco decisões afastam este daqui disso:
 
-**1. A estatística decide, o modelo de linguagem apenas descreve.**
+**1. A estatística decide, o modelo de linguagem apenas descreve — e é conferido.**
 A classificação de regime e a medida de surpresa são calculadas de forma
-determinística. O LLM recebe um JSON de fatos já apurados e não tem acesso a
-nenhum número fora dele — por construção, ele não pode inventar um dado. Se a
-API falhar, um gerador de texto determinístico assume, e o rodapé do briefing diz
-qual dos dois escreveu.
+determinística. O LLM recebe um JSON fechado de fatos já apurados, com os valores
+já formatados como string, e não tem ferramenta, busca nem histórico.
+
+Isso ainda seria só uma promessa, então há uma verificação: **todo número escrito
+precisa estar na lista de números permitidos daquele JSON**. Um valor fora da
+lista reprova o texto inteiro, que é descartado — não corrigido — e o gerador
+determinístico assume. O rodapé diz qual dos dois escreveu e, quando houve
+recusa, o motivo. Cada briefing fica versionado junto com o JSON que o originou,
+e um portão de CI reconfere todos eles a cada build.
 
 **2. O classificador é validado contra uma datação oficial.**
 A série de quadrantes é confrontada com a cronologia de ciclos do CODACE
@@ -81,7 +86,8 @@ julgamento delegado a um modelo de linguagem.
   Focus/BCB ─┤       (retry,        (serie, data_ref,      (consulta) │         (quadrante)           ├──►  briefing  ──►  dashboard
              │      fatiamento)      data_coleta)                     └──►  surpresa vs. Focus  ───────┘    (markdown)      (Streamlit)
   Calendário ┘                                                                                                  ▲
-   IBGE                                                                                              LLM ou template
+   IBGE                                                                                    Haiku 4.5, verificado,
+                                                                                           ou gerador determinístico
 ```
 
 **O repositório é o banco de dados.** Um arquivo Parquet por série, versionado no
@@ -89,9 +95,16 @@ Git. Arquivo DuckDB binário foi descartado de propósito: não versiona bem, e 
 objetivo é que cada commit automático mostre exatamente o que mudou.
 
 **A cadência é por divulgação, não diária.** O job roda todo dia, compara o que a
-API devolve com o que já está gravado, e só escreve briefing quando há observação
-nova ou revisão. Na maior parte dos dias ele fica calado — um sistema que sabe
-não falar é mais útil que um que parafraseia estabilidade.
+API devolve com o que já está gravado, e só escreve briefing quando os fatos
+mudam — divulgação nova, troca de quadrante, virada entrando em pendência. Na
+maior parte dos dias ele fica calado. Um sistema que sabe não falar é mais útil
+que um que parafraseia estabilidade.
+
+**Sete portões de CI**, rodando sobre os dados versionados: lint, testes,
+qualidade das séries, camada derivada em dia com o dado bruto, regime em dia com
+a camada derivada, defasagem contra o CODACE em dia, surpresas em dia — e a
+auditoria dos briefings publicados contra os próprios fatos. Um pipeline que
+quebra alto vale mais que um que grava lixo em silêncio.
 
 ---
 
@@ -108,6 +121,12 @@ a regra é verificada por teste, não por disciplina.
 | Inflação | IPCA mensal, IPCA 12m, núcleo por médias aparadas, núcleo versão congelada (auditoria) |
 | Política | Meta Selic, câmbio PTAX |
 | Expectativas | Focus: IPCA, desocupação e câmbio mensais; PIB trimestral |
+
+O que o pipeline produz também é versionado: a camada derivada e o regime em
+Parquet, as tabelas de validação e surpresa em CSV (legíveis direto no GitHub,
+com diff honesto quando um número muda), e cada briefing em
+[`data/briefings/`](data/briefings/) como um par `.md` + `.json` — o texto e os
+fatos que o originaram.
 
 Duas particularidades da API do SGS ditam o desenho do cliente: cada consulta
 cobre no máximo 10 anos (o backfill é fatiado em janelas de 9), e a ausência de
@@ -132,6 +151,9 @@ ciclo-transformar                # recalcula eixos (ajuste sazonal + momentum)
 ciclo-regime                     # classifica o quadrante de regime
 ciclo-validar                    # mede a defasagem contra a datação do CODACE
 ciclo-surpresa                   # realizado × consenso do Focus da véspera
+ciclo-briefing                   # publica o briefing, se os fatos mudaram
+ciclo-briefing --sem-llm         # o mesmo, só com o gerador determinístico
+ciclo-briefing --auditar         # reconfere os briefings publicados (portão de CI)
 ciclo-calendario --backfill      # datas de divulgação do IBGE desde 2017
 ciclo-qualidade                  # portões de qualidade (código 1 reprova)
 pytest                           # suíte de testes
@@ -144,9 +166,19 @@ pip install -e ".[painel]"
 streamlit run app.py
 ```
 
-Cinco páginas — Regime, Séries, Surpresas, Validação e Metodologia. Ele **só lê
-arquivo**: se um artefato ainda não foi gerado, a tela diz qual comando o produz
-em vez de quebrar.
+Seis páginas — Regime, Briefing, Séries, Surpresas, Validação e Metodologia. Ele
+**só lê arquivo**: se um artefato ainda não foi gerado, a tela diz qual comando o
+produz em vez de quebrar. A aba **Reconstrução** monta o briefing de uma data
+passada para demonstração, com o gerador determinístico e rotulada como tal —
+nunca se confunde com o que foi publicado.
+
+Para o briefing com modelo de linguagem:
+
+```bash
+pip install -e ".[llm]"
+export ANTHROPIC_API_KEY=...       # sem a chave, o gerador determinístico assume
+ciclo-briefing
+```
 
 Consulta:
 
@@ -206,12 +238,14 @@ Estão detalhadas em [docs/metodologia.md](docs/metodologia.md). As principais:
 | 5 | Transcrição do CODACE e medição de defasagem | ✅ concluída |
 | 6 | Surpresas realizado × Focus | ✅ concluída |
 | 7 | Dashboard Streamlit (5 páginas, com Metodologia) | ✅ concluída |
-| 8 | Briefing com LLM, modo replay para demonstração, publicação | — |
+| 8 | Briefing com LLM verificado, reconstrução para demonstração | ✅ concluída |
 
-**Ordem de sacrifício**, se o prazo apertar: o LLM cai primeiro (o template
-cobre), depois as surpresas de subgrupos, depois páginas do dashboard, depois as
-séries de contexto. O núcleo inegociável é ingestão com data de coleta, CI verde,
-quadrante histórico, validação contra o CODACE e a página de Metodologia.
+**Ordem de sacrifício** declarada no começo, e cumprida: o LLM cai primeiro — o
+gerador determinístico cobre, e o rodapé avisa quando cobriu —, depois as
+surpresas de subgrupos (que ficaram de fora), depois páginas do dashboard, depois
+as séries de contexto. O núcleo inegociável era ingestão com data de coleta, CI
+verde, quadrante histórico, validação contra o CODACE e a página de Metodologia.
+Está tudo de pé.
 
 ---
 

@@ -28,6 +28,8 @@ DIR_DERIVADO = DIR_DADOS / "derivado"
 CAMINHO_SURPRESA = DIR_DERIVADO / "surpresa.csv"
 CAMINHO_CALENDARIO = DIR_DADOS / "calendario.parquet"
 CAMINHO_METODOLOGIA = RAIZ / "docs" / "metodologia.md"
+DIR_BRIEFINGS = DIR_DADOS / "briefings"
+CAMINHO_INDICE_BRIEFINGS = DIR_BRIEFINGS / "indice.csv"
 
 PAPEIS = {"eixo_crescimento", "eixo_inflacao", "contexto", "auditoria", "surpresa"}
 AJUSTES = {"origem", "proprio", "nao_aplicavel"}

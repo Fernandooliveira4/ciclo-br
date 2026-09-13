@@ -50,3 +50,10 @@ jobs:
       # briefing citaria consenso de uma divulgacao que ja passou.
       - name: Surpresas em dia com o realizado e com o Focus
         run: ciclo-surpresa --verificar
+
+      # O texto do briefing não é reproduzível — o modelo escreve diferente a
+      # cada vez — mas a promessa sobre ele é. Este portão reconfere todos os
+      # briefings publicados: todo número do texto tem que estar no JSON de
+      # fatos daquele briefing, e o .md tem que conter o texto aprovado.
+      - name: Briefings auditados contra os proprios fatos
+        run: ciclo-briefing --auditar

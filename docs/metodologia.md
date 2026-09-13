@@ -183,7 +183,7 @@ recessões" quase não informa — um sinal ligado em quatro de cada cinco meses
 acerta todas por construção — e a aparente antecipação de doze meses era só o
 sinal ligando cedo e ficando ligado. Com corte em zero, fica ligado em 36% dos
 meses e passa a acompanhar as recessões com atraso de três a quatro meses. A
-tabela completa está na seção 7.3; a decisão está registrada na seção 9.
+tabela completa está na seção 7.3; a decisão está registrada na seção 10.
 
 **Consequência que permanece, agora só do lado da inflação.** O eixo de inflação
 mede desvio do passado brasileiro, não desvio da meta. Em junho de 2026 o núcleo
@@ -648,7 +648,103 @@ desatualizada seria justamente a que o leitor vê.
 
 ---
 
-## 9. Registro de decisões
+## 9. O briefing
+
+O projeto publica um texto curto quando os fatos mudam. É a única parte em que
+um modelo de linguagem entra, e ela foi desenhada de trás para frente: primeiro
+a pergunta "como impedir que ele invente um número", depois o resto.
+
+### 9.1 O modelo não tem acesso a dado nenhum
+
+Ele recebe **um JSON fechado** e nada mais — sem ferramenta, sem busca, sem
+histórico de conversa. Todo valor citável nesse JSON já é **string formatada em
+português** (`"+0,7%"`, `"-0,09 p.p."`, `"11/09/2026"`), e não número bruto. A
+diferença não é de serialização, é de verificabilidade: se o JSON trouxesse
+`0.7182` e o texto escrevesse "0,72", conferir viraria uma discussão sobre
+arredondamento. Trazendo a string pronta, a conferência é comparação exata e o
+modelo só precisa copiar.
+
+O JSON inclui o campo `numeros_permitidos`: a lista de todos os tokens numéricos
+que aparecem nos fatos. É a régua, e o modelo a recebe junto com a instrução —
+uma régua diferente da instrução reprovaria texto obediente.
+
+### 9.2 A verificação recusa; ela não conserta
+
+Depois de gerado, o texto passa por quatro checagens:
+
+1. **Todo número escrito precisa estar em `numeros_permitidos`.** Um único valor
+   fora da lista reprova o texto inteiro.
+2. **Nada de previsão ou recomendação em primeira pessoa.** A lista de termos
+   bloqueados é curta de propósito: bloquear toda palavra de futuro censuraria a
+   frase mais útil do briefing, que é "o consenso previa −0,23". O que está
+   bloqueado é o projeto falando sobre o que vem.
+3. **Sem títulos.** A estrutura do documento é nossa.
+4. **Limite de tamanho.**
+
+Texto reprovado é **descartado inteiro** e o gerador determinístico assume.
+Corrigir a saída exigiria decidir qual parte estava certa, e essa decisão não
+tem como ser automática.
+
+O rodapé — sempre escrito por nós, nunca pelo modelo — diz quem redigiu, qual
+modelo foi usado, o motivo de uma eventual recusa, e o sha256 dos fatos. Deixar
+a assinatura a cargo de quem está sendo auditado seria um desenho estranho.
+
+### 9.3 O gerador determinístico não é plano B envergonhado
+
+Ele é o padrão quando não há chave de API, é a rede de segurança quando o texto
+do modelo é recusado, e é o único gerador que o painel usa — porque o painel não
+fala com a rede. Na ordem de sacrifício declarada no README, o LLM é a primeira
+coisa a cair justamente porque isto aqui cobre.
+
+E ele obedece à mesma régua: há teste conferindo que o template não escreve
+número fora dos fatos. Se um dia escrever, a CI reprova — e está certo que
+reprove.
+
+### 9.4 O gatilho é o diff dos fatos
+
+O comando compara os fatos de hoje com os do último briefing publicado. Se nada
+mudou, não escreve. O que conta como mudança é o que interessa a quem lê:
+divulgação nova, troca de quadrante, avanço do mês de referência, virada entrando
+ou saindo de pendência. Não é o log da ingestão — o que o coletor fez não é
+notícia; o que ele passou a afirmar, sim.
+
+### 9.5 O que fica versionado, e o portão que o confere
+
+Cada briefing é gravado duas vezes: `data/briefings/<data>.md` é o que se lê, e
+`data/briefings/<data>.json` é **o que o texto viu** — fatos fechados, gerador,
+modelo e motivo. Sem o segundo arquivo, "o modelo não pode inventar número" seria
+uma afirmação sobre o passado que ninguém consegue conferir.
+
+`ciclo-briefing --auditar` refaz a conferência sobre tudo que já foi publicado e
+é um portão de CI. O texto não é reproduzível — o modelo escreve diferente a cada
+vez — mas a promessa sobre ele é. A auditoria também confere que o `.md` contém o
+texto do `.json` palavra por palavra, o que pega a edição manual: um briefing
+corrigido à mão depois de publicado deixaria de ser o que a verificação aprovou.
+
+### 9.6 Reconstrução para demonstração, e o que ela não finge ser
+
+`ciclo-briefing --replay AAAA-MM-DD` monta o briefing de uma data passada, e a
+aba Reconstrução do painel faz o mesmo pela tela. Serve para mostrar o sistema
+sem esperar uma divulgação.
+
+O que é honesto nessa reconstrução: **a surpresa**. O consenso é o que o Focus
+apurava na véspera daquela data, e a data de divulgação veio do calendário do
+IBGE — as duas coisas são point-in-time por construção.
+
+O que **não** é, e está escrito no próprio texto gerado: o estado de regime foi
+calculado com a série como ela está hoje, revisões posteriores incluídas. O
+último mês de referência é recuado dois meses, que é a defasagem típica de
+publicação do IBC-Br — uma **regra**, não uma data observada. Não existe vintage
+público dessa série; é por isso que o projeto está construindo o seu, e é por
+isso que a reconstrução leva essa ressalva em vez de fingir precisão que não tem.
+
+A reconstrução nunca é gravada em `data/briefings/`. Um texto reconstruído no
+diretório dos publicados viraria, no dia seguinte, um briefing que parece ter
+sido publicado naquela data.
+
+---
+
+## 10. Registro de decisões
 
 | Data | Decisão | Motivo |
 |---|---|---|
@@ -675,3 +771,10 @@ desatualizada seria justamente a que o leitor vê.
 | 2026-09-13 | Sem seletor de "como estava em data X" no painel | reconstruir o passado com dado revisado de hoje é o viés que a camada derivada existe para evitar (seção 8.2) |
 | 2026-09-13 | Página de Metodologia renderiza `docs/metodologia.md`, não um resumo | duas versões do mesmo argumento divergem, e a desatualizada seria a que o leitor vê (seção 8.4) |
 | 2026-09-13 | Mapa de quadrantes em distância ao corte, não em valor do eixo | o corte de inflação se move; em valores crus a fronteira seria uma linha que anda (seção 8.3) |
+| 2026-09-13 | LLM recebe um JSON fechado com os valores já formatados como string | conferir número vira comparação exata em vez de discussão sobre arredondamento (seção 9.1) |
+| 2026-09-13 | Texto reprovado na verificação é descartado inteiro, nunca corrigido | decidir qual parte estava certa não tem como ser automático (seção 9.2) |
+| 2026-09-13 | Lista de termos proibidos curta, mirando só primeira pessoa sobre o futuro | bloquear toda palavra de futuro censuraria "o consenso previa −0,23" (seção 9.2) |
+| 2026-09-13 | Cada briefing versionado junto com o JSON de fatos que o originou | sem ele, "o modelo não inventou número" seria inverificável depois (seção 9.5) |
+| 2026-09-13 | Portão de CI audita o texto publicado contra os próprios fatos | o texto não é reproduzível, mas a promessa sobre ele é (seção 9.5) |
+| 2026-09-13 | Reconstrução de data passada nunca é gravada em `data/briefings/` | pareceria, no dia seguinte, um briefing publicado naquela data (seção 9.6) |
+| 2026-09-13 | Camada de leitura de artefatos movida para fora do painel | painel e briefing precisam ler os arquivos pelo mesmo código (seção 8.1) |

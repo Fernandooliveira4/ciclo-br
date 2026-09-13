@@ -9,8 +9,10 @@ from __future__ import annotations
 
 import streamlit as st
 
+from ... import artefatos as dados
+from ... import formato
 from ... import regime as regime_mod
-from .. import componentes, dados, formato, graficos
+from .. import componentes, graficos
 
 MESES_NO_MAPA = 24
 

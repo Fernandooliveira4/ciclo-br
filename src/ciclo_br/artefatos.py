@@ -1,5 +1,10 @@
 """Leitura dos artefatos versionados. Nada aqui calcula regime nem busca dado.
 
+É a camada de leitura de **todos** os consumidores — o painel e o briefing — e
+foi para cá justamente por isso: quem lê os arquivos precisa ser um só. Duas
+implementações de "carregar o regime" divergiriam na primeira mudança de coluna,
+e a tela e o texto passariam a discordar sem ninguém perceber.
+
 Cada artefato é declarado junto com o comando que o produz. Quando um arquivo
 falta, o painel não quebra com um traceback: ele diz qual arquivo falta e qual
 comando o gera. Num projeto cujo argumento é "o repositório é o banco de dados",
@@ -18,10 +23,11 @@ from pathlib import Path
 
 import pandas as pd
 
-from .. import regime as regime_mod
-from .. import storage, transformacao, validacao
-from ..config import (
+from . import regime as regime_mod
+from . import storage, transformacao, validacao
+from .config import (
     CAMINHO_CALENDARIO,
+    CAMINHO_INDICE_BRIEFINGS,
     CAMINHO_METODOLOGIA,
     CAMINHO_SURPRESA,
     RAIZ,
@@ -56,6 +62,9 @@ ARTEFATOS: dict[str, Artefato] = {
     "calendario": Artefato(
         "Calendário", CAMINHO_CALENDARIO, "ciclo-calendario --backfill",
         "datas de divulgação do IBGE, com o período de referência de cada uma"),
+    "briefings": Artefato(
+        "Briefings", CAMINHO_INDICE_BRIEFINGS, "ciclo-briefing",
+        "índice dos briefings publicados, com o gerador de cada um"),
     "cronologia": Artefato(
         "Cronologia do CODACE", validacao.CAMINHO_CRONOLOGIA, "transcrição manual",
         "datação oficial de recessões, transcrita da fonte e versionada"),

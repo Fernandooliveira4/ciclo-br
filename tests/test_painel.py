@@ -338,6 +338,20 @@ def test_todo_quadrante_tem_cor():
     assert set(graficos.PALETA_TEXTO) == set(graficos.PALETA)
 
 
+def test_todo_quadrante_tem_explicacao_em_portugues_claro():
+    """O nome sozinho não explica nada a quem não é da área.
+
+    O título da página é uma dessas quatro palavras, então o leitor encontra o
+    termo antes de ter chance de procurar o que ele significa. Um quadrante novo
+    sem frase passaria despercebido até alguém de fora abrir o painel.
+    """
+    from ciclo_br.painel.paginas.regime import SENTIDO
+
+    assert set(SENTIDO) == set(graficos.PALETA)
+    for nome, frase in SENTIDO.items():
+        assert len(frase.split()) >= 15, f"{nome}: frase curta demais para explicar"
+
+
 def _quadrante_da_posicao(x: float, y: float) -> str:
     """O quadrante que a posição no plano implica, sem consultar o classificador."""
     if y > 0:

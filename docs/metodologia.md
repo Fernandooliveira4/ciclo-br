@@ -675,6 +675,30 @@ O documento renderizado nessa página é este arquivo, e não um resumo dele. Du
 versões do mesmo argumento divergiriam na primeira mudança, e a que ficaria
 desatualizada seria justamente a que o leitor vê.
 
+### 8.5 O termo é explicado onde ele aparece
+
+"Expansão", "Aquecimento", "Desaceleração" e "Estagflação" são rótulos deste
+projeto, não vocabulário corrente. O título da página inicial é **uma dessas
+quatro palavras**, o que significa que o leitor encontra o termo antes de ter
+qualquer chance de procurar o que ele quer dizer. Por isso os quatro nomes são
+explicados logo abaixo do título, lado a lado e com o vigente marcado — lado a
+lado de propósito, porque os quatro são combinações das mesmas duas perguntas, e
+vê-los juntos é o que mostra que são quatro respostas de um par, e não quatro
+rótulos avulsos a decorar.
+
+A mesma regra reordenou o texto ao lado do mapa de quadrantes. A primeira versão
+abria pela justificativa metodológica — por que os eixos medem distância até o
+corte — que é a preocupação de quem escreveu, não a de quem chega. Agora abre
+pelo que a figura mostra (cada bolinha é um mês, a linha é o caminho), depois
+pelas duas perguntas que os eixos fazem em português corrente, e a justificativa
+metodológica desceu para nota de rodapé, onde continua visível e deixou de ser
+pedágio. A nota fecha ancorando o abstrato no concreto: zero num eixo quer dizer
+*nem cresce nem encolhe*; no outro, *inflação exatamente no normal histórico*.
+
+Isso não é simplificação do conteúdo, e sim ordenação por audiência: nenhuma
+ressalva foi removida da tela, nenhuma delas mudou de lugar para fora do alcance
+do leitor. O que mudou foi a ordem em que ele encontra as coisas.
+
 ---
 
 ## 9. O briefing
@@ -815,3 +839,5 @@ sido publicado naquela data.
 | 2026-09-13 | Camada de leitura de artefatos movida para fora do painel | painel e briefing precisam ler os arquivos pelo mesmo código (seção 8.1) |
 | 2026-09-13 | Ponto do mapa pintado pelo quadrante do mês, regime vigente vira anel | o olho lê posição antes de cor; pintar pelo vigente punha ponto verde na faixa amarela (seção 8.3) |
 | 2026-09-13 | Quadrantes desenhados como área tingida, e nome recuado pelo próprio lado | com o recuo medido no eixo inteiro, "Aquecimento" ficava a cinco pixels da linha do zero (seção 8.3) |
+| 2026-09-13 | Os quatro nomes explicados em frase corrente logo abaixo do título | o título da página é uma das quatro palavras: o leitor topa com o termo antes de poder procurá-lo (seção 8.5) |
+| 2026-09-13 | Texto do mapa abre pela figura; justificativa metodológica vira rodapé | ordenar por audiência, não por ordem de descoberta de quem escreveu — sem tirar ressalva nenhuma da tela (seção 8.5) |

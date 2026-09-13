@@ -16,6 +16,28 @@ from .. import componentes, graficos
 
 MESES_NO_MAPA = 24
 
+# O que cada nome quer dizer para quem não trabalha com isso. Fica aqui, e não
+# só na metodologia, porque o título da página é uma dessas quatro palavras: o
+# leitor encontra o termo antes de ter qualquer chance de procurar o que é.
+#
+# Cada frase responde às mesmas duas perguntas dos eixos, nessa ordem — cresce
+# ou encolhe, preços acima ou abaixo do normal — para que a leitura do texto e a
+# leitura do gráfico usem o mesmo par de perguntas.
+SENTIDO = {
+    "Expansão":
+        "A economia **cresce** e os preços sobem **menos** que o normal "
+        "histórico. É a combinação boa: crescer sem a conta da inflação.",
+    "Aquecimento":
+        "A economia **cresce**, mas os preços sobem **mais** que o normal. "
+        "Crescimento com fatura: é quando se costuma discutir alta de juros.",
+    "Desaceleração":
+        "A atividade **encolhe** e a pressão de preços **cede**. Ruim para o "
+        "emprego, e é o quadro que costuma abrir espaço para o juro cair.",
+    "Estagflação":
+        "A atividade **encolhe** e os preços sobem **acima** do normal. O pior "
+        "dos quatro: o remédio para um lado piora o outro.",
+}
+
 
 @componentes.protegido
 def renderizar() -> None:
@@ -42,45 +64,45 @@ def renderizar() -> None:
 
 
 def _estado(info: dict) -> None:
-    esquerda, direita = st.columns([3, 2])
-
-    with esquerda:
-        st.markdown(
-            f"## {componentes.pilula(info['quadrante'])}", unsafe_allow_html=True)
-        st.markdown(
-            f"Desde **{formato.mes_ano(info['desde'])}** "
-            f"({formato.meses(info['meses_no_quadrante'])}). "
-            f"Último mês de referência: **{formato.mes_ano(info['referencia'])}**."
+    st.markdown(
+        f"## {componentes.pilula(info['quadrante'])}", unsafe_allow_html=True)
+    st.markdown(
+        f"Desde **{formato.mes_ano(info['desde'])}** "
+        f"({formato.meses(info['meses_no_quadrante'])}). "
+        f"Último mês de referência: **{formato.mes_ano(info['referencia'])}**."
+    )
+    if info.get("pendente"):
+        st.warning(
+            f"**Virada pendente:** o sinal cru já aponta "
+            f"*{info['pendente']}* há {formato.meses(info['meses_pendente'])}, "
+            f"e a regra exige {regime_mod.MESES_PERSISTENCIA} meses seguidos "
+            f"para confirmar. Enquanto isso, o quadrante vigente continua "
+            f"sendo o que está acima.",
+            icon="⏳",
         )
-        if info.get("pendente"):
-            st.warning(
-                f"**Virada pendente:** o sinal cru já aponta "
-                f"*{info['pendente']}* há {formato.meses(info['meses_pendente'])}, "
-                f"e a regra exige {regime_mod.MESES_PERSISTENCIA} meses seguidos "
-                f"para confirmar. Enquanto isso, o quadrante vigente continua "
-                f"sendo o que está acima.",
-                icon="⏳",
-            )
-        else:
-            st.caption(
-                "Nenhuma virada pendente: o sinal cru concorda com o quadrante "
-                "vigente neste mês."
-            )
-
-    with direita:
-        st.markdown("**O que cada quadrante quer dizer**")
-        st.markdown(
-            "\n".join(
-                f"- {componentes.pilula(nome)} &nbsp; {descricao}"
-                for nome, descricao in (
-                    ("Expansão", "cresce sem pressionar preços"),
-                    ("Aquecimento", "cresce e pressiona preços"),
-                    ("Desaceleração", "não cresce e não pressiona"),
-                    ("Estagflação", "não cresce e pressiona"),
-                )
-            ),
-            unsafe_allow_html=True,
+    else:
+        st.caption(
+            "Nenhuma virada pendente: o sinal cru concorda com o quadrante "
+            "vigente neste mês."
         )
+
+    _glossario(info.get("quadrante"))
+
+
+def _glossario(vigente: str | None) -> None:
+    """Os quatro nomes explicados, lado a lado, com o vigente marcado.
+
+    Lado a lado e não em lista: os quatro são combinações de duas perguntas, e
+    ver os quatro juntos é o que mostra que são quatro respostas do mesmo par —
+    e não quatro rótulos avulsos que o leitor teria que decorar.
+    """
+    st.markdown("**O que cada um desses nomes quer dizer**")
+    for coluna, nome in zip(st.columns(4), graficos.ORDEM, strict=True):
+        with coluna.container(border=True):
+            marca = " &nbsp;·&nbsp; **agora**" if nome == vigente else ""
+            st.markdown(
+                f"{componentes.pilula(nome)}{marca}", unsafe_allow_html=True)
+            st.caption(SENTIDO[nome])
 
 
 def _numeros(info: dict) -> None:
@@ -149,29 +171,41 @@ def _mapa() -> None:
     st.subheader("Onde a economia está, e para onde estava indo")
     reg = dados.regime_mensal()
 
-    grafico, leitura = st.columns([3, 2])
+    grafico, leitura = st.columns([5, 4])
     with grafico:
         st.altair_chart(
             graficos.mapa_de_quadrantes(reg, meses=MESES_NO_MAPA), width="stretch")
     with leitura:
         st.markdown(
-            f"**Como ler.** Os eixos mostram a **distância até o corte**, não o "
-            f"valor bruto do indicador. O corte de inflação se move — é a mediana "
-            f"expansiva do histórico — então, em valores crus, a fronteira do "
-            f"quadrante seria uma linha que anda e o leitor teria que adivinhar "
-            f"onde ela estava em cada mês. Plotando a distância, a fronteira é o "
-            f"zero em todos os meses.\n\n"
-            f"**A cor do ponto é a da faixa em que ele caiu** — a do quadrante "
-            f"daquele mês, não a do regime vigente. Os dois discordam enquanto a "
-            f"regra de persistência não confirma a virada, e é aí que aparece o "
-            f"**anel colorido**: o mês já cruzou a fronteira, mas o regime em "
-            f"vigor ainda é o anterior, e o anel tem a cor desse regime. Cada "
-            f"anel é um mês de atraso da regra, no lugar onde ele acontece.\n\n"
-            f"São os últimos {MESES_NO_MAPA} meses classificados. O círculo "
-            f"escuro é o mês mais recente; a linha é o caminho até ele, e é ela "
-            f"que informa: dois meses no mesmo quadrante podem estar indo em "
-            f"direções opostas."
+            f"**Cada bolinha é um mês** — são os últimos {MESES_NO_MAPA}. A "
+            f"linha liga cada mês ao seguinte, então ela é o caminho que a "
+            f"economia fez, e o círculo escuro marca o mês mais recente. O "
+            f"caminho conta mais que o ponto: dois meses na mesma faixa podem "
+            f"estar indo em direções opostas.\n\n"
+            f"**Os dois eixos são duas perguntas.** O de baixo pergunta *a "
+            f"economia está crescendo?* — à direita da linha vertical, sim; à "
+            f"esquerda, ela está encolhendo. O da lateral pergunta *os preços "
+            f"estão subindo mais rápido que o normal?* — acima da linha "
+            f"horizontal, sim; abaixo, não. Cada faixa colorida é uma das quatro "
+            f"combinações possíveis dessas duas respostas, com o nome no canto.\n\n"
+            f"**O anel em volta de alguns pontos.** A cor de dentro diz onde o "
+            f"mês caiu; o anel diz qual regime ainda estava valendo. Os dois "
+            f"discordam porque uma virada só é confirmada depois de "
+            f"{regime_mod.MESES_PERSISTENCIA} meses seguidos do sinal novo — "
+            f"então cada anel é um mês de atraso da regra, marcado no lugar onde "
+            f"esse atraso aconteceu."
         )
+
+    st.caption(
+        "**Por que os eixos mostram a distância até o corte, e não o número do "
+        "indicador.** O corte de inflação não é um número fixo: é a mediana do "
+        "próprio histórico até aquele mês, e por isso ele se move. Com os "
+        "valores crus, a fronteira entre os quadrantes seria uma linha que anda, "
+        "e o leitor teria que adivinhar onde ela estava em cada mês. Medindo a "
+        "distância até o corte, a fronteira é o zero em todos os meses: zero no "
+        "eixo de baixo quer dizer *nem cresce nem encolhe*, e zero no eixo da "
+        "lateral quer dizer *inflação exatamente no normal histórico*."
+    )
 
 
 def _historia() -> None:

@@ -136,19 +136,41 @@ def test_persistencia_reduz_o_numero_de_trocas():
     assert trocas_com == 0
 
 
-def test_sinais_leem_o_corte_escolhido():
-    """O corte alternativo existe para a validação medir, e precisa ser de fato outro."""
+def test_corte_ativo_e_zero():
+    """Guarda a decisão de 12/09/2026 contra troca acidental (seção 7.4)."""
+    assert regime.CORTE_CRESCIMENTO == "zero"
+    assert set(regime.CORTES_CRESCIMENTO) == {"zero", "mediana"}
+
+
+def test_serie_de_corte_recusa_estrategia_inventada():
+    with pytest.raises(ValueError, match="corte desconhecido"):
+        regime.serie_de_corte(pd.Series([1.0], index=idx(1)), "meta")
+
+
+def test_sinais_reconstroem_os_dois_cortes_do_mesmo_arquivo():
+    """A validação compara as duas versões lendo um arquivo só.
+
+    Crescimento sempre positivo mas sempre abaixo da própria mediana: com corte
+    em zero o sinal está ligado o tempo todo, com a mediana está desligado. Se
+    `sinais` lesse a coluna gravada em vez de recalcular, uma das duas leituras
+    seria impossível.
+    """
+    n = 80
+    oscilante = 5.0 + np.tile([1.0, -1.0], n // 2)
     reg = pd.DataFrame({
-        "data_referencia": [d.date() for d in idx(3)],
-        "eixo_crescimento": [1.0, 1.0, 1.0],
-        "eixo_inflacao": [0.0, 0.0, 0.0],
-        "corte_crescimento": [2.0, 2.0, 2.0],
-        "corte_inflacao": [1.0, 1.0, 1.0],
+        "data_referencia": [d.date() for d in idx(n)],
+        "eixo_crescimento": oscilante,
+        "eixo_inflacao": np.full(n, 5.0),
+        "corte_crescimento": np.zeros(n),
+        "corte_inflacao": pd.Series(np.full(n, 5.0)).expanding(min_periods=60).median(),
     })
-    assert not regime.sinais(reg, corte_crescimento="mediana")[0].any()
-    assert regime.sinais(reg, corte_crescimento="zero")[0].all()
-    with pytest.raises(ValueError):
-        regime.sinais(reg, corte_crescimento="meta")
+
+    acima_zero, _ = regime.sinais(reg, corte_crescimento="zero")
+    acima_mediana, _ = regime.sinais(reg, corte_crescimento="mediana")
+
+    assert acima_zero.all()
+    assert len(acima_mediana) == len(acima_zero)
+    assert not acima_mediana.all()
 
 
 # ------------------------------------------------------------- camada toda

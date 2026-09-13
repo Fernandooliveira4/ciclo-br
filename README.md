@@ -35,11 +35,13 @@ A série de quadrantes é confrontada com a cronologia de ciclos do CODACE
 acerto. A janela de validação contém três recessões, e é exatamente por isso que
 o classificador é uma regra de sinal e não um modelo com parâmetros estimados.
 
-A validação não é um selo: ela mudou o projeto. Encontrou um travamento na regra
-de persistência que produzia um episódio de contração de 116 meses, fixou o prazo
-de confirmação em três meses contra evidência em vez de gosto, e mostrou que o
-corte de crescimento em uso deixa o sinal ligado em 81% dos meses da janela. O
-resultado inteiro está em [`data/derivado/validacao_resumo.csv`](data/derivado/validacao_resumo.csv)
+A validação não é um selo: ela mudou o projeto duas vezes. Encontrou um
+travamento na regra de persistência que produzia um episódio de contração de 116
+meses, e derrubou o corte do eixo de crescimento — com a mediana histórica o sinal
+ficava ligado em 81% dos meses da janela, e nessa taxa base "detectou todas as
+recessões" é quase tautologia. Com corte em zero o sinal fica ligado em 36% dos
+meses e acompanha as recessões com atraso de três a quatro meses. O resultado
+inteiro está em [`data/derivado/validacao_resumo.csv`](data/derivado/validacao_resumo.csv)
 e o raciocínio na [seção 7 da metodologia](docs/metodologia.md).
 
 **3. Nenhum dado é sobrescrito.**
@@ -148,9 +150,11 @@ Estão detalhadas em [docs/metodologia.md](docs/metodologia.md). As principais:
   completa e o comitê, na época, não tinha.
 - A recessão da covid **nunca foi datada em meses** pelo CODACE. Os meses usados na
   validação são derivados dos trimestres publicados, e a linha está marcada como tal.
-- O corte de crescimento em uso é a mediana do próprio histórico, o que deixa o
-  sinal ligado em 81% dos meses entre 2008 e 2020. A alternativa está medida lado a
-  lado no mesmo arquivo, em vez de argumentada em prosa.
+- O sinal **acompanha, não antecipa**: entra na recessão com três a quatro meses de
+  atraso e sai com três. É o que uma regra de momentum pode fazer sobre dado
+  publicado com 45 a 60 dias de defasagem.
+- O eixo de inflação ainda é comparado à mediana do próprio histórico, não à meta.
+  O núcleo a 4,2% aparece como "inflação baixa" porque a mediana brasileira é 5,3%.
 
 ---
 

@@ -1,9 +1,10 @@
 """Validação do classificador contra a cronologia oficial do CODACE.
 
 **O que está sendo comparado — e o que não está.** O CODACE data *recessões*:
-queda disseminada do nível de atividade. O eixo de crescimento deste projeto
-mede *momentum abaixo da mediana histórica*. São objetos diferentes, e crescer
-abaixo da mediana acontece muito mais vezes do que a economia entra em recessão.
+queda disseminada do nível de atividade, avaliada por um comitê olhando um
+conjunto amplo de indicadores. O eixo de crescimento deste projeto é o momentum
+de uma série só, comparado a um corte. São objetos diferentes, e o sinal fica
+abaixo do corte bem mais vezes do que a economia entra em recessão.
 
 Por isso a métrica principal é a **defasagem** — quantos meses o sinal se antecipa
 ou atrasa em relação ao início e ao fim de cada recessão datada — e não taxa de
@@ -13,10 +14,11 @@ mas como característica medida, não como erro.
 
 **Por que isso não vira um modelo.** A janela de validação tem três recessões:
 2008, 2014-2016 e 2020. Três eventos não sustentam parâmetro estimado. O que a
-validação faz é escolher *um* parâmetro — os meses de persistência — varrendo os
-valores possíveis e mostrando o que cada um custa em atraso e o que compra em
-sossego. A escolha continua sendo de quem lê; o que deixa de existir é a escolha
-no escuro.
+validação faz é varrer as duas escolhas que o classificador tem — o corte do
+eixo de crescimento e o prazo de persistência — e mostrar o que cada combinação
+custa em atraso e o que compra em sossego. A escolha continua sendo de quem lê;
+o que deixa de existir é a escolha no escuro. Foi assim que o corte passou da
+mediana histórica para zero.
 
 **Convenção de datação.** O pico é o último mês de expansão e o vale é o último
 mês de recessão (o próprio CODACE define assim para os trimestres). Logo a
@@ -167,12 +169,18 @@ def defasagens(sinal: pd.Series, crono: pd.DataFrame) -> pd.DataFrame:
                 "pico": str(rec["pico"]), "vale": str(rec["vale"]),
                 "cobertura": cobertura, "detectada": False,
                 "episodio_inicio": "", "episodio_fim": "",
-                "defasagem_pico": pd.NA, "defasagem_vale": pd.NA,
+                "defasagem_pico": pd.NA, "defasagem_pico_primeiro": pd.NA,
+                "defasagem_vale": pd.NA,
                 "meses_sobrepostos": 0, "cobertura_da_recessao": 0.0,
             })
             continue
 
         melhor, sobreposto = max(candidatos, key=lambda item: (item[1], -item[0][0].ordinal))
+        # O sinal pode ligar, desligar e religar dentro da mesma recessão. A
+        # regra escolhe o maior bloco, mas o primeiro bloco a tocar a recessão é
+        # outra leitura legítima da mesma coisa, e fica na tabela em vez de virar
+        # nota de rodapé: em 2014 os dois números são +11 e +1.
+        primeiro = min(candidatos, key=lambda item: item[0][0].ordinal)[0]
         # O fim do episódio pode coincidir com o fim da série: aí o sinal ainda
         # não saiu de contração e a defasagem do vale é indeterminada.
         saiu = melhor[1] < ultimo_mes
@@ -182,6 +190,7 @@ def defasagens(sinal: pd.Series, crono: pd.DataFrame) -> pd.DataFrame:
             "cobertura": cobertura, "detectada": True,
             "episodio_inicio": str(melhor[0]), "episodio_fim": str(melhor[1]),
             "defasagem_pico": (melhor[0] - rec["inicio"]).n,
+            "defasagem_pico_primeiro": (primeiro[0] - rec["inicio"]).n,
             "defasagem_vale": (melhor[1] - rec["vale"]).n if saiu else pd.NA,
             "meses_sobrepostos": sobreposto,
             "cobertura_da_recessao": round(sobreposto / rec["duracao"], 3),
@@ -369,7 +378,7 @@ def main(argv: list[str] | None = None) -> int:
     log.info("validação gravada%s", "" if mudou else " (sem alteração)")
     escolhido = resumo[
         (resumo["persistencia"] == regime.MESES_PERSISTENCIA)
-        & (resumo["corte_crescimento"] == "mediana")
+        & (resumo["corte_crescimento"] == regime.CORTE_CRESCIMENTO)
     ]
     if not escolhido.empty:
         linha = escolhido.iloc[0]

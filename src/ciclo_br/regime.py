@@ -1,13 +1,30 @@
 """Classificador de regime: quadrantes de crescimento × inflação.
 
 **Como o quadrante é definido.** Cada eixo é comparado a um corte, e o par de
-sinais dá um dos quatro estados. Os cortes são a **mediana em janela expansiva**
-de cada eixo: o corte de um mês é a mediana dos dados até aquele mês.
+sinais dá um dos quatro estados. Os dois cortes não são do mesmo tipo, e a
+diferença é deliberada:
 
-Essa escolha de janela não é detalhe de implementação. A mediana calculada sobre
-a amostra inteira reintroduziria o viés de look-ahead que o ajuste sazonal
+- **Crescimento: corte em zero.** Momentum negativo é atividade encolhendo. A
+  pergunta é "está caindo?", que é a mesma pergunta que a datação oficial de
+  recessões responde.
+- **Inflação: mediana em janela expansiva.** Não existe um "zero" natural para
+  inflação — todo número positivo é alguma inflação — então a referência é o
+  próprio histórico brasileiro, com o corte de um mês sendo a mediana dos dados
+  até aquele mês.
+
+A janela expansiva não é detalhe de implementação. A mediana calculada sobre a
+amostra inteira reintroduziria o viés de look-ahead que o ajuste sazonal
 recursivo existe para eliminar — o corte de 2015 estaria usando dados de 2020.
-Em janela expansiva o corte só conhece o passado, como o resto da cadeia.
+
+**Por que o crescimento deixou de usar a mediana.** A primeira versão comparava
+os dois eixos contra a mediana do próprio histórico. A validação contra o CODACE
+mostrou o custo: entre maio de 2008 e junho de 2020, o momentum ficou abaixo da
+sua mediana expansiva em **81% dos meses**. Nessa taxa base, "detectou todas as
+recessões" quase não informa, e a aparente antecipação de doze meses era o sinal
+ligando cedo e ficando ligado. Com corte em zero o sinal fica ligado em 36% dos
+meses e passa a acompanhar as recessões com atraso de três a quatro meses — o
+comportamento honesto de uma regra de momentum sobre dado publicado com 45 a 60
+dias de defasagem. A medição está na seção 7 da metodologia.
 
 **Por que uma regra e não um modelo estimado.** A janela de validação contra a
 datação do CODACE contém três recessões. Com três eventos, qualquer modelo com
@@ -58,10 +75,12 @@ MESES_PERSISTENCIA = 3
 # Mínimo de história antes de o corte expansivo significar alguma coisa.
 MINIMO_PARA_CORTE = 60
 
-# Cortes possíveis para o eixo de crescimento. O projeto usa "mediana"; "zero"
-# existe para que a camada de validação meça a alternativa sem que o
-# classificador troque de critério por conta própria.
-CORTES_CRESCIMENTO = ("mediana", "zero")
+# Cortes possíveis para o eixo de crescimento, e qual deles está em uso. O
+# alternativo continua existindo para que a camada de validação meça os dois
+# lado a lado — trocar de opinião aqui precisa custar uma medição, não um
+# palpite.
+CORTES_CRESCIMENTO = ("zero", "mediana")
+CORTE_CRESCIMENTO = "zero"
 
 QUADRANTES = {
     (True, True): "Aquecimento",      # cresce e pressiona preços
@@ -79,6 +98,21 @@ def corte_expansivo(serie: pd.Series, *, minimo: int = MINIMO_PARA_CORTE) -> pd.
     """
     corte = serie.expanding(min_periods=minimo).median()
     return corte
+
+
+def serie_de_corte(eixo: pd.Series, estrategia: str) -> pd.Series:
+    """O corte do eixo de crescimento, conforme a estratégia escolhida.
+
+    Calculado a partir do próprio eixo, e não lido de coluna gravada: assim a
+    camada de validação reconstrói qualquer uma das duas versões a partir do
+    mesmo arquivo, sem depender de qual delas estava ativa quando ele foi
+    gerado.
+    """
+    if estrategia == "zero":
+        return pd.Series(0.0, index=eixo.index)
+    if estrategia == "mediana":
+        return corte_expansivo(eixo)
+    raise ValueError(f"corte desconhecido: {estrategia!r}")
 
 
 def classificar_bruto(
@@ -175,15 +209,15 @@ def sinais(reg: pd.DataFrame, *, corte_crescimento: str = "mediana") -> tuple[pd
     classificador mude de opinião por conta própria. O padrão do projeto
     continua sendo a mediana.
     """
-    if corte_crescimento not in CORTES_CRESCIMENTO:
-        raise ValueError(f"corte desconhecido: {corte_crescimento!r}")
-
     indice = pd.PeriodIndex(pd.to_datetime(reg["data_referencia"]), freq="M")
-    valido = (reg["corte_crescimento"].notna() & reg["corte_inflacao"].notna()).to_numpy()
-    limite = (
-        reg["corte_crescimento"].to_numpy() if corte_crescimento == "mediana" else 0.0
-    )
-    acima_g = pd.Series(reg["eixo_crescimento"].to_numpy() > limite, index=indice)
+    eixo_g = pd.Series(reg["eixo_crescimento"].to_numpy(dtype="float64"), index=indice)
+    limite = serie_de_corte(eixo_g, corte_crescimento)
+
+    # A classificação só começa quando o corte de inflação existe, o que exige
+    # 60 meses de história. O corte de crescimento em zero não exige nenhuma,
+    # mas o quadrante precisa dos dois eixos, então quem manda é o mais lento.
+    valido = (limite.notna().to_numpy() & reg["corte_inflacao"].notna().to_numpy())
+    acima_g = pd.Series(eixo_g.to_numpy() > limite.to_numpy(), index=indice)
     acima_i = pd.Series(
         reg["eixo_inflacao"].to_numpy() > reg["corte_inflacao"].to_numpy(), index=indice
     )
@@ -204,7 +238,7 @@ def construir() -> pd.DataFrame:
         log.warning("eixos indisponíveis na camada derivada")
         return pd.DataFrame()
 
-    corte_g = corte_expansivo(eixos["eixo_crescimento"])
+    corte_g = serie_de_corte(eixos["eixo_crescimento"], CORTE_CRESCIMENTO)
     corte_i = corte_expansivo(eixos["eixo_inflacao"])
     bruto = classificar_bruto(
         eixos["eixo_crescimento"], eixos["eixo_inflacao"], corte_g, corte_i
@@ -218,6 +252,11 @@ def construir() -> pd.DataFrame:
         (eixos["eixo_inflacao"] > corte_i)[valido],
     ).reindex(eixos.index)
     persistente["meses_pendente"] = persistente["meses_pendente"].fillna(0)
+    # `reindex` transforma os None de "nada pendente" em NaN, e NaN é verdadeiro
+    # num `if`. Sem esta linha o painel anuncia "pendente: nan".
+    for coluna in ("quadrante", "pendente"):
+        persistente[coluna] = persistente[coluna].astype(object).where(
+            persistente[coluna].notna(), None)
 
     regime = pd.DataFrame({
         "data_referencia": [d.date() for d in eixos.index],
@@ -265,7 +304,7 @@ def resumo(regime: pd.DataFrame) -> dict:
             (ultimo["data_referencia"].year - inicio.year) * 12
             + ultimo["data_referencia"].month - inicio.month + 1
         ),
-        "pendente": ultimo["pendente"],
+        "pendente": ultimo["pendente"] if pd.notna(ultimo["pendente"]) else None,
         "meses_pendente": int(ultimo["meses_pendente"]),
         "eixo_crescimento": float(ultimo["eixo_crescimento"]),
         "eixo_inflacao": float(ultimo["eixo_inflacao"]),
@@ -335,7 +374,7 @@ def main(argv: list[str] | None = None) -> int:
 
     mudou = salvar(regime)
     info = resumo(regime)
-    log.info("regime: %d meses classificados%s", len(regime),
+    log.info("regime: %d meses classificados%s", int(regime["quadrante"].notna().sum()),
              "" if mudou else " (sem alteração)")
     if info:
         log.info("vigente: %s desde %s (%d meses)",

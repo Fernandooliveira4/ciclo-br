@@ -149,32 +149,48 @@ camada de classificação, não desta.
 | **Crescimento acima do corte** | Expansão | Aquecimento |
 | **Crescimento abaixo do corte** | Desaceleração | Estagflação |
 
-**Os cortes são a mediana em janela expansiva de cada eixo.** O corte de um mês é
-a mediana dos dados até aquele mês — nunca da amostra inteira. Isso não é detalhe
-de implementação: a mediana de amostra cheia reintroduziria o viés de look-ahead
-que o ajuste sazonal recursivo existe para eliminar, porque o corte de 2015
-estaria usando dados de 2020. Há teste dedicado a essa propriedade.
+**Os dois cortes não são do mesmo tipo, e a diferença é deliberada.**
 
-**Consequência assumida da escolha de corte.** Usar a mediana do próprio histórico
-significa que o eixo mede desvio do passado brasileiro, não desvio da meta de
-inflação. Em setembro de 2026, por exemplo, o núcleo anualizado está em 4,2% — 
-acima da meta de 3%, e ainda assim classificado como "inflação baixa", porque a
-mediana histórica é 5,3%. É uma referência coerente e verificável, mas responde
-"a inflação está baixa para os padrões do Brasil", não "a inflação está dentro da
-meta". A alternativa — comparar contra a meta vigente em cada mês — foi
-considerada e descartada; trocar exige apenas substituir a série de corte.
+- **Crescimento: corte em zero.** Momentum negativo é atividade encolhendo. A
+  pergunta vira "está caindo?", que é a mesma pergunta que a datação oficial de
+  recessões responde — e por isso a validação da seção 7 tem sentido.
+- **Inflação: mediana em janela expansiva.** Não existe zero natural para
+  inflação; todo número positivo é alguma inflação. A referência é o próprio
+  histórico, com o corte de um mês sendo a mediana dos dados até aquele mês —
+  nunca da amostra inteira, o que reintroduziria o viés de look-ahead que o
+  ajuste sazonal recursivo existe para eliminar. Há teste dedicado.
 
-**Classificação só a partir de maio de 2008.** O corte expansivo exige 60 meses de
-história e o eixo de crescimento começa em junho de 2003. As três recessões da
-janela de validação (2008-09, 2014-16 e 2020) ficam cobertas, mas os cinco
-primeiros anos da série não são classificados.
+**O corte de crescimento já foi a mediana, e mudou por medição.** Até 12/09/2026
+os dois eixos usavam a mediana do próprio histórico. A validação da seção 7
+mostrou o custo: entre maio de 2008 e junho de 2020, o momentum ficou abaixo da
+sua mediana expansiva em **81% dos meses**. Nessa taxa base, "detectou as três
+recessões" quase não informa — um sinal ligado em quatro de cada cinco meses
+acerta todas por construção — e a aparente antecipação de doze meses era só o
+sinal ligando cedo e ficando ligado. Com corte em zero, fica ligado em 36% dos
+meses e passa a acompanhar as recessões com atraso de três a quatro meses. A
+tabela completa está na seção 7.3; a decisão está registrada na seção 8.
+
+**Consequência que permanece, agora só do lado da inflação.** O eixo de inflação
+mede desvio do passado brasileiro, não desvio da meta. Em junho de 2026 o núcleo
+anualizado está em 4,2% — acima da meta de 3% — e ainda assim classificado como
+"inflação baixa", porque a mediana histórica é 5,3%. É referência coerente e
+verificável, mas responde "a inflação está baixa para os padrões do Brasil", não
+"a inflação está dentro da meta". A alternativa — comparar contra a meta vigente
+em cada mês — continua em aberto, e trocar exige apenas substituir a série de
+corte, como foi feito do lado do crescimento.
+
+**Classificação só a partir de maio de 2008**, 218 meses. Quem manda agora é o
+corte de inflação: ele exige 60 meses de história, e o eixo começa em junho de
+2003. O corte de crescimento em zero não exige nenhuma, mas o quadrante precisa
+dos dois eixos, então vale o mais lento. As três recessões da janela de validação
+ficam cobertas; os cinco primeiros anos da série, não.
 
 **Persistência de 3 meses, confirmada por eixo.** Aplicada crua, a regra trocaria
-de quadrante 52 vezes em 277 meses, com um terço dos episódios durando dois meses
-ou menos — ruído apresentado como mudança de regime. Uma troca só é confirmada
-após três meses consecutivos do novo sinal, o que reduz as trocas para 33.
-Enquanto não confirma, o estado anterior permanece vigente e o candidato fica
-marcado como **pendente**, exibido no painel em vez de escondido.
+de quadrante 43 vezes em 218 meses classificados, com episódios de dois meses ou
+menos apresentados como mudança de regime. Uma troca só é confirmada após três
+meses consecutivos do novo sinal, o que reduz as trocas para 28. Enquanto não
+confirma, o estado anterior permanece vigente e o candidato fica marcado como
+**pendente**, exibido no painel em vez de escondido.
 
 A confirmação corre **em cada eixo separadamente**, e não no rótulo de quatro
 estados. A primeira versão contava meses do quadrante inteiro, e a validação da
@@ -189,17 +205,43 @@ O custo da persistência é atraso, e atraso é exatamente o que a seção 7 med
 prazo de três meses deixou de ser escolha de gosto: é o resultado da varredura
 registrada lá.
 
-**Aderência a episódios conhecidos** (verificação de 12/09/2026):
+**Episódios de contração do sinal** — os dez blocos contíguos em que o
+crescimento confirmado está abaixo de zero, em 218 meses classificados
+(verificação de 12/09/2026):
 
-| Episódio | Classificação |
+| Episódio | Duração | Recessão datada pelo CODACE |
+|---|---|---|
+| dez/2008 – mai/2009 | 6 m | set–dez/2008 |
+| jan/2012 – jun/2012 | 6 m | — |
+| mai/2014 – nov/2014 | 7 m | abr/2014 – dez/2016 |
+| mar/2015 – mar/2017 | 25 m | abr/2014 – dez/2016 |
+| jun/2018 – set/2018 | 4 m | — |
+| mai/2019 – jul/2019 | 3 m | — |
+| mai/2020 – set/2020 | 5 m | jan–jun/2020 |
+| mai/2021 – set/2021 | 5 m | (fora da janela avaliável) |
+| set/2023 – nov/2023 | 3 m | (fora da janela avaliável) |
+| set/2025 – nov/2025 | 3 m | (fora da janela avaliável) |
+
+A recessão de 2014-2016 aparece em dois blocos, com um respiro de três meses no
+início de 2015 — é por isso que a seção 7.3 publica duas leituras da defasagem
+no pico daquela recessão.
+
+**Aderência dentro das recessões datadas:**
+
+| Recessão | Quadrantes atribuídos |
 |---|---|
-| 2015-16 | Estagflação em 18 de 18 meses |
-| COVID (2020) | Desaceleração, 6 meses |
-| 2021-22 | Aquecimento 6m → Estagflação 4m → Desaceleração 3m |
-| 2008-09 | Desaceleração, 8 meses |
+| set–dez/2008 | Expansão 3, Desaceleração 1 |
+| abr/2014 – dez/2016 | Estagflação 29, Aquecimento 4 |
+| jan–jun/2020 | Expansão 4, Desaceleração 2 |
 
-A sequência de 2021-22 reproduz a narrativa real do período: repique com inflação,
-depois o crescimento morre e a inflação permanece.
+Os dois primeiros meses de cada recessão costumam ficar do lado errado, e isso é o
+atraso de três a quatro meses medido na seção 7 aparecendo como rótulo. A recessão
+de 2008 tem só quatro meses na datação mensal do CODACE, então o atraso consome
+quase toda ela.
+
+**A sequência de 2021-22** foi Expansão 4m → Desaceleração 4m → Estagflação 1m →
+Aquecimento 15m, que reproduz a narrativa real: retomada, tropeço no meio de 2021,
+e depois crescimento com inflação alta até o fim de 2022.
 
 ---
 
@@ -308,10 +350,11 @@ fecham exatamente. Há teste que quebra se a transcrição escorregar um mês.
 
 ### 7.2 O que está sendo comparado — e o que não está
 
-O CODACE data **recessões**: queda disseminada do nível de atividade. O eixo de
-crescimento deste projeto mede **momentum abaixo de um corte**. São objetos
-diferentes, e o sinal fica abaixo do corte muito mais vezes do que a economia
-entra em recessão.
+O CODACE data **recessões**: queda disseminada do nível de atividade, avaliada
+por um comitê que olha um conjunto amplo de indicadores e se reúne quando quer. O
+eixo de crescimento deste projeto é o momentum de **uma** série, comparado a um
+corte, calculado todo mês. São objetos diferentes, e o sinal fica abaixo do corte
+mais vezes do que a economia entra em recessão.
 
 Por isso a métrica principal é a **defasagem** — quantos meses o sinal se antecipa
 ou atrasa em cada ponta — e não taxa de acerto. Taxa de acerto penalizaria o sinal
@@ -348,22 +391,22 @@ Gerado por `ciclo-validar`, versionado em
 [`data/derivado/validacao_resumo.csv`](../data/derivado/validacao_resumo.csv) e
 [`data/derivado/validacao_defasagens.csv`](../data/derivado/validacao_defasagens.csv),
 e reverificado na CI. A janela avaliável tem 146 meses, dos quais 43 são de
-recessão datada.
+recessão datada. A linha em negrito é a configuração em uso.
 
 | Corte | Persistência | Recessões detectadas | Defasagem no pico (mediana) | Defasagem no vale | Trocas de quadrante | Episódios fora de recessão | Maior episódio | Fração da janela com sinal ligado |
 |---|---|---|---|---|---|---|---|---|
-| mediana | 1 (sem regra) | 3/3 | 0 | +2 | 52 | 8 | 44 m | 76% |
-| mediana | 2 | 3/3 | +1 | +3 | 46 | 7 | 44 m | 77% |
-| **mediana** | **3 (vigente)** | **3/3** | **−12** | **+4** | **33** | **4** | **54 m** | **81%** |
-| mediana | 4 | 3/3 | −43 | +7 | 15 | 0 | 122 m | 91% |
-| mediana | 5 | 3/3 | −36 | +8 | 13 | 0 | 116 m | 87% |
-| mediana | 6 | 3/3 | −35 | +9 | 10 | 0 | 116 m | 87% |
 | zero | 1 (sem regra) | 3/3 | +2 | +1 | 43 | 5 | 25 m | 40% |
 | zero | 2 | 3/3 | +3 | +2 | 36 | 4 | 25 m | 38% |
-| zero | **3** | 3/3 | +4 | +3 | 28 | 3 | 25 m | 36% |
+| **zero** | **3** | **3/3** | **+4** | **+3** | **28** | **3** | **25 m** | **36%** |
 | zero | 4 | 2/3 | +3,5 | +4 | 16 | 3 | 35 m | 36% |
 | zero | 5 | 1/3 | +3 | +5 | 14 | 2 | 35 m | 32% |
 | zero | 6 | 1/3 | +4 | +6 | 10 | 2 | 35 m | 32% |
+| mediana | 1 (sem regra) | 3/3 | 0 | +2 | 52 | 8 | 44 m | 76% |
+| mediana | 2 | 3/3 | +1 | +3 | 46 | 7 | 44 m | 77% |
+| mediana | 3 | 3/3 | −12 | +4 | 33 | 4 | 54 m | 81% |
+| mediana | 4 | 3/3 | −43 | +7 | 15 | 0 | 122 m | 91% |
+| mediana | 5 | 3/3 | −36 | +8 | 13 | 0 | 116 m | 87% |
+| mediana | 6 | 3/3 | −35 | +9 | 10 | 0 | 116 m | 87% |
 
 A coluna "maior episódio" e a fração de meses com sinal ligado não são decoração.
 Sem elas, a degeneração apareceria como o melhor resultado da tabela: um prazo de
@@ -373,33 +416,60 @@ acontece com a mediana e persistência 4, onde um único episódio de **122 mese
 engole as recessões de 2014-2016 e de 2020 e produz a "antecipação" de 112 meses
 que aparece na tabela detalhada.
 
-### 7.4 O que a tabela decide, e o que ela abre
+**Recessão a recessão, na configuração em uso:**
 
-**O prazo de persistência está decidido em 3, e por evidência.** Com o corte
-vigente, 3 é o maior valor que ainda não degenera: em 4 o sinal vira um bloco
-único. Com o corte alternativo, 3 é o maior valor que ainda detecta as três
-recessões: em 4 uma delas é perdida. Os dois critérios, independentes, apontam o
-mesmo número. Os valores 1 e 2 continuam disponíveis e custam 46 a 52 trocas de
-quadrante — regime que muda quatro vezes por ano não é regime.
+| Recessão | Datação | Episódio do sinal | Defasagem no pico | No vale | Cobertura |
+|---|---|---|---|---|---|
+| 2008 | set–dez/2008 (mensal) | dez/2008 – mai/2009 | +3 | +5 | 1 de 4 meses |
+| 2014-2016 | abr/2014 – dez/2016 (mensal) | mar/2015 – mar/2017 | +11 (ou +1) | +3 | 22 de 33 meses |
+| 2020 | jan–jun/2020 (trimestral) | mai–set/2020 | +4 | +3 | 2 de 6 meses |
 
-**A tabela abriu uma questão que não estava no roteiro: o corte de crescimento.**
-Entre maio de 2008 e junho de 2020, o momentum brasileiro ficou abaixo da sua
-própria mediana expansiva em **81% dos meses**. Nessa taxa base, "detectou 3 de 3
-recessões" quase não informa: um sinal ligado em quatro de cada cinco meses acerta
-todas por construção. A antecipação de 12 meses também não é antecipação de
-verdade — é o sinal ligando cedo e ficando ligado.
+**As duas defasagens de 2014.** O sinal ligou em maio de 2014, um mês depois do
+início da recessão, desligou por três meses no começo de 2015 e religou. A regra
+de associação escolhe o bloco de maior sobreposição, que é o segundo — daí +11. A
+leitura pelo primeiro bloco a tocar a recessão dá +1. As duas estão na coluna
+`defasagem_pico` e `defasagem_pico_primeiro` do CSV, em vez de uma delas virar
+nota de rodapé conveniente.
 
-Trocando apenas o corte de crescimento por **zero** — isto é, perguntando "a
-atividade está encolhendo?" em vez de "está crescendo abaixo do padrão histórico?"
-— o sinal passa a ficar ligado em 36% dos meses, o maior episódio cai de 54 para
-25 meses, e a defasagem vira **+4 meses no pico e +3 no vale**. O sinal deixa de
-antecipar e passa a acompanhar com atraso curto, que é o comportamento honesto de
-uma regra de momentum sobre dados publicados com 45 a 60 dias de defasagem.
+**A recessão de 2008 é o pior caso, e por um motivo estrutural.** A datação mensal
+do CODACE lhe dá quatro meses. Com atraso de três meses, o sinal pega só o último.
+Uma regra de momentum sobre dado publicado com 45 a 60 dias de defasagem não tem
+como fazer melhor numa recessão tão curta — e isso é limite do método, não ajuste
+pendente.
 
-**Nada foi trocado.** O classificador continua usando a mediana expansiva, que é a
-decisão registrada na seção 8. As duas versões são medidas lado a lado e
-versionadas justamente para que a escolha possa ser revista com números em vez de
-opinião — a troca custa uma linha, e a seção 4c diz qual.
+### 7.4 O que a tabela decidiu
+
+**O corte do eixo de crescimento passou da mediana histórica para zero.** Era a
+escolha original do projeto, e a medição a derrubou. Com a mediana, o sinal ficava
+ligado em 81% dos meses da janela: nessa taxa base, "detectou 3 de 3 recessões" é
+quase tautologia, e a antecipação de doze meses era o sinal ligando cedo e ficando
+ligado, não previsão. Com corte em zero, fica ligado em 36% dos meses, o maior
+episódio cai de 54 para 25 meses, e a defasagem vira +4 no pico e +3 no vale.
+
+O sinal deixou de "antecipar" e passou a acompanhar com atraso curto. Isso é
+piora aparente e melhora real: acompanhar com três a quatro meses de atraso é o
+comportamento honesto de uma regra de momentum sobre dado publicado com 45 a 60
+dias de defasagem, enquanto antecipar doze meses era artefato da taxa base.
+
+**O prazo de persistência está fixado em 3, e por evidência.** Com corte em zero,
+3 é o maior valor que ainda detecta as três recessões — em 4 uma delas é perdida.
+Com o corte anterior, 3 era o maior valor que ainda não degenerava em bloco único.
+Os dois critérios, em dois cortes diferentes, apontam o mesmo número. Os valores 1
+e 2 continuam disponíveis e custam 36 a 43 trocas de quadrante em 218 meses —
+regime que muda duas vezes por ano não é regime.
+
+**O que continua aberto.** O corte do eixo de inflação segue sendo a mediana
+expansiva, pelo motivo da seção 4c: não há zero natural para inflação. A
+alternativa seria comparar contra a meta vigente em cada mês, o que exigiria
+versionar a série histórica de metas do CMN. Não está feito, e a consequência
+— núcleo a 4,2% classificado como "inflação baixa" porque a mediana é 5,3% —
+está declarada em vez de escondida.
+
+**As duas versões continuam sendo medidas lado a lado.** A varredura não foi
+apagada depois da decisão: `ciclo-validar` recalcula as doze combinações a cada
+execução e a CI reprova se a tabela sair de sincronia com o classificador. Uma
+decisão tomada por medição precisa continuar medível, ou vira folclore de
+repositório.
 
 ---
 
@@ -419,4 +489,5 @@ opinião — a troca custa uma linha, e a seção 4c diz qual.
 | 2026-09-12 | Persistência confirmada por eixo, não pelo rótulo do quadrante | ruído no outro eixo travava a virada; episódio de 116 meses (seção 4c) |
 | 2026-09-12 | Prazo de persistência fixado em 3 meses | maior valor que não degenera nem perde recessão, nos dois cortes (seção 7.4) |
 | 2026-09-12 | Cronologia do CODACE transcrita à mão, com a imagem de origem versionada | a fonte não publica formato estruturado; transcrição precisa ser auditável (seção 7.1) |
-| 2026-09-12 | Corte de crescimento mantido na mediana expansiva, com a alternativa medida ao lado | a decisão é do autor do projeto; a validação entrega o número, não a troca (seção 7.4) |
+| 2026-09-12 | Corte do eixo de crescimento trocado da mediana expansiva para zero | com a mediana o sinal ficava ligado em 81% dos meses; a taxa base tornava a detecção vazia (seção 7.4) |
+| 2026-09-12 | Corte do eixo de inflação mantido na mediana expansiva | não há zero natural para inflação; a alternativa exigiria versionar a série de metas do CMN (seção 7.4) |

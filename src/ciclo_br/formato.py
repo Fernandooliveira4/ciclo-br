@@ -23,30 +23,41 @@ MESES_CURTOS = ("jan", "fev", "mar", "abr", "mai", "jun",
                 "jul", "ago", "set", "out", "nov", "dez")
 
 
+def _vazio(valor) -> bool:
+    """`None`, `NaN` ou `NaT` — as três formas de "não há data aqui".
+
+    A comparação `valor != valor` pega NaN e NaT sem importar o pandas, e existe
+    porque o `NaT` tem atributos `.day` e `.month`: eles devolvem `nan`, e a
+    formatação estoura com "Unknown format code 'd' for object of type 'float'"
+    em vez de cair no ramo de valor ausente. Já aconteceu.
+    """
+    return valor is None or valor != valor
+
+
 def mes_ano(data) -> str:
     """dezembro de 2025."""
-    if data is None:
+    if _vazio(data):
         return "—"
     return f"{MESES[data.month - 1]} de {data.year}"
 
 
 def mes_curto(data) -> str:
     """dez/2025."""
-    if data is None:
+    if _vazio(data):
         return "—"
     return f"{MESES_CURTOS[data.month - 1]}/{data.year}"
 
 
 def dia(data) -> str:
     """12/09/2026."""
-    if data is None:
+    if _vazio(data):
         return "—"
     return f"{data.day:02d}/{data.month:02d}/{data.year}"
 
 
 def numero(valor, casas: int = 1, *, sinal: bool = False, sufixo: str = "") -> str:
     """Número com vírgula decimal. `None`/NaN viram travessão, nunca 'nan'."""
-    if valor is None:
+    if _vazio(valor):
         return "—"
     try:
         valor = float(valor)
@@ -60,7 +71,7 @@ def numero(valor, casas: int = 1, *, sinal: bool = False, sufixo: str = "") -> s
 
 def dias(quantidade) -> str:
     """1 dia, 2 dias."""
-    if quantidade is None:
+    if _vazio(quantidade):
         return "—"
     quantidade = int(quantidade)
     return f"{quantidade} dia" if abs(quantidade) == 1 else f"{quantidade} dias"
@@ -68,7 +79,7 @@ def dias(quantidade) -> str:
 
 def meses(quantidade) -> str:
     """1 mês, 2 meses — a concordância que um painel em português precisa ter."""
-    if quantidade is None:
+    if _vazio(quantidade):
         return "—"
     quantidade = int(quantidade)
     return f"{quantidade} mês" if abs(quantidade) == 1 else f"{quantidade} meses"
@@ -80,7 +91,7 @@ def defasagem(valor) -> str:
     Escrito por extenso porque o sinal sozinho é ambíguo na tela: em uma tabela
     de defasagem, "+4" só significa atraso para quem já leu a metodologia.
     """
-    if valor is None or (isinstance(valor, float) and math.isnan(valor)):
+    if _vazio(valor):
         return "—"
     valor = int(round(float(valor)))
     if valor == 0:
@@ -91,7 +102,7 @@ def defasagem(valor) -> str:
 
 def idade(momento: dt.datetime | None, *, agora: dt.datetime | None = None) -> str:
     """Há quanto tempo um arquivo foi gerado, em linguagem de painel."""
-    if momento is None:
+    if _vazio(momento):
         return "—"
     agora = agora or dt.datetime.now(dt.UTC)
     if momento.tzinfo is None:

@@ -222,6 +222,30 @@ def test_surpresas_por_par_traz_a_ultima_divulgacao():
     assert info["media"] == pytest.approx(0.15)
 
 
+def test_a_data_de_geracao_vem_de_dentro_do_arquivo():
+    """Num servidor, a data do arquivo é a hora do clone, não a do cálculo.
+
+    Mostrar a data do sistema de arquivos como "atualizado há uma hora" faria o
+    painel anunciar dado fresco quando o que é fresco é a implantação. Os
+    artefatos que carregam a própria data de geração são lidos por dentro.
+    """
+    import pandas as pd_
+
+    calculo = dados.gerado_em("regime")
+    gravado = pd_.Timestamp(dados.regime()["calculado_em"].max()).to_pydatetime()
+    assert calculo == gravado
+
+    # Quem não carrega carimbo devolve None, e o painel mostra travessão.
+    assert dados.gerado_em("cronologia") is None
+
+
+def test_procedencia_separa_calculo_de_gravacao():
+    proc = dados.procedencia()
+    assert {"gerado_em", "modificado_em"} <= set(proc.columns)
+    com_carimbo = proc[proc["gerado_em"].notna()]
+    assert set(com_carimbo["chave"]) >= {"regime", "derivado"}
+
+
 def test_procedencia_lista_todo_artefato_que_o_painel_le():
     proc = dados.procedencia()
     assert set(proc["chave"]) == set(dados.ARTEFATOS)
@@ -236,6 +260,22 @@ def test_formato_nunca_escreve_nan_na_tela():
     assert formato.numero(None) == "—"
     assert formato.mes_ano(None) == "—"
     assert formato.defasagem(float("nan")) == "—"
+
+
+@pytest.mark.parametrize("vazio", [None, pd.NaT, float("nan")])
+def test_formato_aguenta_as_tres_formas_de_data_ausente(vazio):
+    """`NaT` tem `.day` e `.month`, e eles devolvem `nan`.
+
+    Sem o tratamento, `f"{data.day:02d}"` estoura com "Unknown format code 'd'
+    for object of type 'float'" em vez de cair no ramo de valor ausente — foi
+    exatamente assim que a página de Metodologia quebrou ao ganhar uma coluna
+    com artefatos sem carimbo de geração.
+    """
+    assert formato.dia(vazio) == "—"
+    assert formato.mes_ano(vazio) == "—"
+    assert formato.mes_curto(vazio) == "—"
+    assert formato.idade(vazio) == "—"
+    assert formato.meses(vazio) == "—"
 
 
 def test_defasagem_diz_atraso_ou_antecipacao():

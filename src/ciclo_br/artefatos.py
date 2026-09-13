@@ -344,11 +344,57 @@ def metodologia() -> str:
     return _caminho("metodologia").read_text(encoding="utf-8")
 
 
+def gerado_em(chave: str) -> dt.datetime | None:
+    """Quando o número foi calculado, lido de dentro do próprio artefato.
+
+    **Não é a data do arquivo.** Num servidor, a data de modificação do arquivo
+    é a hora em que o repositório foi clonado, e mostrá-la como "atualizado há
+    uma hora" seria afirmar frescor de dado quando o que é fresco é a
+    implantação. Os artefatos que carregam a própria data de geração respondem
+    isso corretamente em qualquer máquina; os que não carregam devolvem `None`,
+    e o painel mostra um travessão em vez de inventar.
+    """
+    try:
+        if chave == "regime":
+            return _instante(regime()["calculado_em"].max())
+        if chave == "derivado":
+            return _instante(derivado()["calculado_em"].max())
+        if chave == "calendario":
+            return _instante(calendario()["coletado_em"].max())
+        if chave == "briefings":
+            from json import loads
+
+            registros = sorted(CAMINHO_INDICE_BRIEFINGS.parent.glob("*.json"))
+            if not registros:
+                return None
+            marcas = [
+                loads(c.read_text(encoding="utf-8")).get("gerado_em")
+                for c in registros
+            ]
+            validas = [dt.datetime.fromisoformat(m) for m in marcas if m]
+            return max(validas) if validas else None
+    except (ArtefatoAusente, KeyError, ValueError, OSError):
+        return None
+    return None
+
+
+def _instante(valor) -> dt.datetime | None:
+    if pd.isna(valor):
+        return None
+    momento = pd.Timestamp(valor).to_pydatetime()
+    return momento if momento.tzinfo else momento.replace(tzinfo=dt.UTC)
+
+
 def procedencia() -> pd.DataFrame:
     """Todo arquivo que o painel lê, com estado e data de geração.
 
     É a resposta literal a "de onde vem o que está na tela", e o lugar onde a
     ausência de um artefato vira informação em vez de exceção.
+
+    Traz as duas datas separadas de propósito: `gerado_em` é quando o número foi
+    calculado, e vem de dentro do arquivo; `modificado_em` é quando o arquivo
+    chegou nesta máquina, e num servidor isso é a hora do clone. Juntá-las
+    numa coluna só seria confortável e errado.
     """
     linhas = []
     for chave, artefato in ARTEFATOS.items():
@@ -356,6 +402,7 @@ def procedencia() -> pd.DataFrame:
         estatistica = artefato.caminho.stat() if existe else None
         linhas.append({
             "chave": chave,
+            "gerado_em": gerado_em(chave) if existe else None,
             "artefato": artefato.rotulo,
             "arquivo": artefato.caminho.relative_to(RAIZ).as_posix(),
             "existe": existe,

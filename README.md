@@ -8,12 +8,19 @@ do ciclo em quadrantes de crescimento × inflação, confronta essa classificaç
 com a datação oficial de recessões do CODACE, mede a surpresa de cada divulgação
 contra o consenso do Focus, e publica um briefing — mas só quando há dado novo.
 
+[![Abrir o painel](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://regimemacro.streamlit.app)
 ![CI](https://github.com/Fernandooliveira4/ciclo-br/actions/workflows/ci.yml/badge.svg)
 ![Ingestão](https://github.com/Fernandooliveira4/ciclo-br/actions/workflows/ingest.yml/badge.svg)
 
-![O painel na página de Regime](docs/imagens/painel-regime.png)
+### ▶ [regimemacro.streamlit.app](https://regimemacro.streamlit.app)
 
-### Abrir o painel
+[![O painel na página de Regime](docs/imagens/painel-regime.png)](https://regimemacro.streamlit.app)
+
+Seis páginas: **Regime**, **Briefing**, **Séries**, **Surpresas**, **Validação** e
+**Metodologia**. A primeira abertura leva algum tempo, porque o servidor hiberna
+quando ninguém visita.
+
+Para rodar na sua máquina:
 
 ```bash
 pip install -r requirements.txt && streamlit run app.py
@@ -21,11 +28,8 @@ pip install -r requirements.txt && streamlit run app.py
 
 No Windows, [`scripts/abrir-painel.cmd`](scripts/abrir-painel.cmd) faz isso
 sozinho: cria o ambiente na primeira vez, sobe o servidor e abre o navegador
-quando ele responde.
-
-Seis páginas: **Regime**, **Briefing**, **Séries**, **Surpresas**, **Validação** e
-**Metodologia**. Funciona a partir de um clone limpo e **sem rede** — todos os
-dados estão versionados no repositório.
+quando ele responde. Funciona a partir de um clone limpo e **sem rede** — todos
+os dados estão versionados no repositório.
 
 ---
 

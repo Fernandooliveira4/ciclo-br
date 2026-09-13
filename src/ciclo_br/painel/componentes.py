@@ -82,9 +82,18 @@ def barra_lateral() -> None:
         proc = dados.procedencia()
         faltando = proc[~proc["existe"]]
         if faltando.empty:
-            gerado = proc["modificado_em"].dropna().max()
-            st.caption(f"Artefatos: {len(proc)} arquivos, o mais recente "
-                       f"{formato.idade(gerado)}.")
+            # A data vem de dentro do arquivo, não do sistema de arquivos.
+            # Num servidor, a data do arquivo é a hora em que o repositório foi
+            # clonado — dizer "atualizado há uma hora" com base nela seria
+            # anunciar frescor de dado quando o que é fresco é a implantação.
+            calculo = dados.gerado_em("derivado")
+            if calculo:
+                st.caption(
+                    f"Camada derivada calculada em {formato.dia(calculo)}. "
+                    f"{len(proc)} artefatos versionados."
+                )
+            else:
+                st.caption(f"{len(proc)} artefatos versionados.")
         else:
             st.warning(f"{len(faltando)} artefato(s) ausente(s).")
 

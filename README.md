@@ -35,6 +35,14 @@ determinístico assume. O rodapé diz qual dos dois escreveu e, quando houve
 recusa, o motivo. Cada briefing fica versionado junto com o JSON que o originou,
 e um portão de CI reconfere todos eles a cada build.
 
+**Hoje o caminho do LLM está desligado**, e os briefings deste repositório saíram
+todos do gerador determinístico — o rodapé de cada um diz isso, e
+[`data/briefings/indice.csv`](data/briefings/indice.csv) registra a série inteira.
+Ligar é uma variável de ambiente; não ligar não tira nada do briefing, e é o
+teste mais direto da afirmação que abre este item: se o texto continua completo
+sem o modelo, é porque ele nunca carregou informação que a estatística não
+tivesse produzido antes.
+
 **2. O classificador é validado contra uma datação oficial.**
 A série de quadrantes é confrontada com a cronologia de ciclos do CODACE
 (FGV/IBRE), e a métrica principal é a **defasagem** do sinal, não a taxa de

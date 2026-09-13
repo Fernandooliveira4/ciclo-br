@@ -161,16 +161,18 @@
     },
     "versao": 1
   },
-  "gerado_em": "2026-09-13T06:40:58+00:00",
+  "gerado_em": "2026-09-13T07:03:43+00:00",
   "gerador": "modelo",
   "modelo": null,
-  "motivo": "sem chave de API ou SDK da Anthropic",
+  "motivo": "caminho do modelo de linguagem desligado — sem chave no ambiente",
   "mudancas": {
-    "divulgacoes": [
-      "ipca agosto de 2026"
-    ],
-    "houve": true,
-    "primeiro": true
+    "divulgacoes": [],
+    "houve": false,
+    "pendencia_mudou": false,
+    "primeiro": false,
+    "quadrante_anterior": "Expansão",
+    "quadrante_mudou": false,
+    "referencia_avancou": false
   },
   "replay": false,
   "texto": "**IPCA, referência agosto de 2026: -0,32 contra consenso de -0,23.** O número saiu abaixo do que o consenso projetava. Surpresa de -0,09 p.p., 0,9× o desvio padrão histórico do par — dentro da faixa de rotina. O consenso usado é a apuração do Focus de 04/09/2026, a última antes da divulgação de 11/09/2026; ele estava parado havia 7 dias.\n\n**Regime: Expansão desde dezembro de 2025 (7 meses).** Na referência de junho de 2026, o eixo de crescimento está em +0,7% contra corte em 0,0, e o de inflação em 4,2% contra corte em 5,3. Nenhuma virada esperando confirmação.\n\n**O sinal acompanha, não antecipa.** Contra a datação do CODACE, esta configuração — corte em zero, persistência de 3 meses — entra em contração com defasagem mediana de +4 meses e sai com +3, e fica ligada em 36% dos meses da janela avaliada.\n\n**No calendário:** Pesquisa Nacional por Amostra de Domicílios Contínua Mensal em 29/09/2026 (referência agosto de 2026); Pesquisa Industrial Mensal: Produção Física - Brasil em 02/10/2026 (referência agosto de 2026); Índice Nacional de Preços ao Consumidor Amplo em 09/10/2026 (referência setembro de 2026).\n\n**Ressalvas.** O eixo de crescimento vem do IBC-Br, publicado com 45 a 60 dias de defasagem: o mês de referência do regime é sempre anterior ao mês corrente.",

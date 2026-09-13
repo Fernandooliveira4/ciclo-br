@@ -136,7 +136,9 @@ def escrever(fatos: dict, mudancas: dict, *, cliente=None) -> Resultado:
     """Pede o texto ao modelo e devolve só o que passa na verificação."""
     if cliente is None:
         if not disponivel():
-            return Resultado(None, "sem chave de API ou SDK da Anthropic", None)
+            return Resultado(
+                None, "caminho do modelo de linguagem desligado — sem chave no "
+                      "ambiente", None)
         import anthropic
 
         cliente = anthropic.Anthropic()

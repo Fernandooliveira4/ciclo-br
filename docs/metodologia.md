@@ -700,6 +700,12 @@ E ele obedece à mesma régua: há teste conferindo que o template não escreve
 número fora dos fatos. Se um dia escrever, a CI reprova — e está certo que
 reprove.
 
+**Na prática, é ele que está escrevendo.** Todos os briefings publicados até aqui
+saíram do gerador determinístico, porque o caminho do modelo de linguagem está
+desligado. Isso é menos uma limitação do que uma demonstração: se o briefing
+continua completo sem o modelo, o modelo nunca esteve carregando informação — e
+essa é exatamente a afirmação da seção 1.
+
 ### 9.4 O gatilho é o diff dos fatos
 
 O comando compara os fatos de hoje com os do último briefing publicado. Se nada

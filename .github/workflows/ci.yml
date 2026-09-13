@@ -37,3 +37,6 @@ jobs:
       # o dashboard estaria mostrando número derivado de uma versão antiga.
       - name: Camada derivada em dia com o dado bruto
         run: ciclo-transformar --verificar
+
+      - name: Regime em dia com a camada derivada
+        run: ciclo-regime --verificar

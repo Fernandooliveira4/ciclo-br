@@ -140,6 +140,61 @@ camada de classificação, não desta.
 
 ---
 
+## 4c. Classificador de regime
+
+**Os quatro estados.** O par de sinais dos dois eixos define o quadrante:
+
+| | Inflação abaixo do corte | Inflação acima do corte |
+|---|---|---|
+| **Crescimento acima do corte** | Expansão | Aquecimento |
+| **Crescimento abaixo do corte** | Desaceleração | Estagflação |
+
+**Os cortes são a mediana em janela expansiva de cada eixo.** O corte de um mês é
+a mediana dos dados até aquele mês — nunca da amostra inteira. Isso não é detalhe
+de implementação: a mediana de amostra cheia reintroduziria o viés de look-ahead
+que o ajuste sazonal recursivo existe para eliminar, porque o corte de 2015
+estaria usando dados de 2020. Há teste dedicado a essa propriedade.
+
+**Consequência assumida da escolha de corte.** Usar a mediana do próprio histórico
+significa que o eixo mede desvio do passado brasileiro, não desvio da meta de
+inflação. Em setembro de 2026, por exemplo, o núcleo anualizado está em 4,2% — 
+acima da meta de 3%, e ainda assim classificado como "inflação baixa", porque a
+mediana histórica é 5,3%. É uma referência coerente e verificável, mas responde
+"a inflação está baixa para os padrões do Brasil", não "a inflação está dentro da
+meta". A alternativa — comparar contra a meta vigente em cada mês — foi
+considerada e descartada; trocar exige apenas substituir a série de corte.
+
+**Classificação só a partir de maio de 2008.** O corte expansivo exige 60 meses de
+história e o eixo de crescimento começa em junho de 2003. As três recessões da
+janela de validação (2008-09, 2014-16 e 2020) ficam cobertas, mas os cinco
+primeiros anos da série não são classificados.
+
+**Persistência de 3 meses.** Aplicada crua, a regra trocaria de quadrante 52 vezes
+em 277 meses, com um terço dos episódios durando dois meses ou menos — ruído
+apresentado como mudança de regime. Uma troca só é confirmada após três meses
+consecutivos do novo sinal, o que reduz as trocas para 24. Enquanto não confirma,
+o estado anterior permanece vigente e o candidato fica marcado como **pendente**,
+exibido no painel em vez de escondido.
+
+O custo da persistência é atraso, e atraso é exatamente o que a validação da
+seção 7 mede. Por isso a camada guarda também o quadrante **sem** persistência: a
+defasagem contra a cronologia do CODACE será medida nas duas versões, e o
+parâmetro deixa de ser escolhido por gosto para ser escolhido contra evidência.
+
+**Aderência a episódios conhecidos** (verificação de 12/09/2026):
+
+| Episódio | Classificação |
+|---|---|
+| 2015-16 | Estagflação em 18 de 18 meses |
+| COVID (2020) | Desaceleração, 6 meses |
+| 2021-22 | Aquecimento 6m → Estagflação 4m → Desaceleração 3m |
+| 2008-09 | Desaceleração, 8 meses |
+
+A sequência de 2021-22 reproduz a narrativa real do período: repique com inflação,
+depois o crescimento morre e a inflação permanece.
+
+---
+
 ## 5. Medida de surpresa
 
 **Definição.** Surpresa = valor realizado − mediana do Focus vigente na véspera da

@@ -57,6 +57,9 @@ jobs:
       - name: Recalcular camada derivada
         run: ciclo-transformar
 
+      - name: Reclassificar regime
+        run: ciclo-regime
+
       - name: Portões de qualidade
         run: ciclo-qualidade
 

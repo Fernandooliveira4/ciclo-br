@@ -25,6 +25,7 @@ ciclo-ingest = "ciclo_br.ingestion.run:main"
 ciclo-calendario = "ciclo_br.ingestion.calendario:main"
 ciclo-qualidade = "ciclo_br.qualidade:main"
 ciclo-transformar = "ciclo_br.transformacao:main"
+ciclo-regime = "ciclo_br.regime:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

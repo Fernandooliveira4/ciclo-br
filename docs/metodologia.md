@@ -613,15 +613,44 @@ painel escolhe a linha da varredura que corresponde ao classificador em uso, em
 vez de assumir; sem isso, ele poderia exibir a defasagem de uma configuração que
 não é a que gerou os quadrantes ao lado.
 
-### 8.3 Três decisões de gráfico que não são estéticas
+### 8.3 Quatro decisões de gráfico que não são estéticas
 
 **O mapa de quadrantes plota distância ao corte, não o valor do eixo.** O corte
 de inflação se move — é a mediana expansiva do próprio histórico. Com valores
 crus, a fronteira do quadrante seria uma linha que anda e o leitor teria que
 adivinhar onde ela estava em cada mês. Plotando a distância, a fronteira é o zero
-em todos os meses, e o quadrante que se vê é exatamente o que o classificador
-diz. O domínio é forçado a conter o zero nos dois eixos, para que a fronteira
-esteja sempre à vista.
+em todos os meses, e a posição do ponto diz sozinha em que quadrante o mês caiu.
+O domínio é forçado a conter o zero nos dois eixos, para que a fronteira esteja
+sempre à vista.
+
+**No mapa, o ponto é pintado pelo quadrante do mês, e o regime vigente virou um
+anel.** A primeira versão pintava pelo vigente, e o resultado foi um gráfico com
+pontos verdes dentro da faixa amarela: abril e maio de 2025 já estavam do lado de
+Aquecimento, mas a regra de persistência ainda não tinha confirmado a virada, e o
+regime em vigor continuava sendo Expansão. Os dois valores estavam certos; a tela
+é que dizia as duas coisas ao mesmo tempo sem avisar.
+
+A correção segue uma ordem de precedência que vale além deste gráfico: **o olho
+lê posição antes de cor**, então quem cede é a cor. O preenchimento passou a ser
+o `quadrante_bruto`, que é exatamente o que a posição já afirma — redundância
+deliberada, porque redundância reforça e contradição confunde. O `quadrante`
+vigente voltou como anel em volta do ponto, desenhado só nos meses em que os dois
+discordam. Com isso o defeito de leitura virou a informação mais interessante do
+gráfico: cada anel é um mês de atraso da regra de persistência, marcado no lugar
+do plano onde esse atraso aconteceu. É a mesma defasagem que a seção 7 mede em
+tabela, aqui visível sem tabela nenhuma.
+
+Junto veio o conserto de dois problemas de legibilidade que a discordância de
+cores escondia. Os quatro quadrantes agora são **áreas tingidas**, e não duas
+linhas tracejadas para o leitor intersectar de cabeça — o que também torna
+impossível esconder uma cor de ponto que discorde da faixa onde ele está. E o
+nome de cada quadrante é recuado por uma fração do **próprio lado**, não do eixo
+inteiro: como o eixo de inflação passa quase todo o tempo abaixo do corte, a
+metade de cima é uma faixa fina, e o recuo medido no eixo inteiro punha
+"Aquecimento" a cinco pixels da linha do zero. O nome parava de identificar a
+região e passava a parecer a legenda da linha. Há teste travando os dois: que a
+camada de pontos use `quadrante_bruto`, e que cada nome caia dentro do seu
+próprio quadrante mesmo com eixos muito assimétricos.
 
 **Os dois eixos não dividem a mesma escala.** O momentum de crescimento foi de
 −38 a +40 na covid; o eixo de inflação vive entre 0 e 13. Num gráfico só, a
@@ -784,3 +813,5 @@ sido publicado naquela data.
 | 2026-09-13 | Portão de CI audita o texto publicado contra os próprios fatos | o texto não é reproduzível, mas a promessa sobre ele é (seção 9.5) |
 | 2026-09-13 | Reconstrução de data passada nunca é gravada em `data/briefings/` | pareceria, no dia seguinte, um briefing publicado naquela data (seção 9.6) |
 | 2026-09-13 | Camada de leitura de artefatos movida para fora do painel | painel e briefing precisam ler os arquivos pelo mesmo código (seção 8.1) |
+| 2026-09-13 | Ponto do mapa pintado pelo quadrante do mês, regime vigente vira anel | o olho lê posição antes de cor; pintar pelo vigente punha ponto verde na faixa amarela (seção 8.3) |
+| 2026-09-13 | Quadrantes desenhados como área tingida, e nome recuado pelo próprio lado | com o recuo medido no eixo inteiro, "Aquecimento" ficava a cinco pixels da linha do zero (seção 8.3) |

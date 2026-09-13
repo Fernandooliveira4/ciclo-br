@@ -105,8 +105,12 @@ def regime_mensal() -> pd.DataFrame:
     mediana expansiva do próprio histórico. Num gráfico de quadrantes com eixos
     crus, a fronteira seria uma linha que anda, e o leitor teria que adivinhar
     onde ela estava em cada mês. Plotando a distância, a fronteira é o zero em
-    todos os meses, e o quadrante que se vê é exatamente o que o classificador
-    diz.
+    todos os meses, e a posição do ponto diz sozinha em que quadrante o mês caiu.
+
+    Atenção ao que essa posição **não** diz: ela corresponde ao `quadrante_bruto`,
+    o sinal do mês. O `quadrante` vigente pode ser outro, porque a regra de
+    persistência segura a virada até ela se confirmar. Quem desenha precisa
+    escolher qual dos dois está pintando, e dizer qual escolheu.
     """
     reg = regime()
     return reg.assign(

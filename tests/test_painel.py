@@ -335,3 +335,52 @@ def test_todo_quadrante_tem_cor():
 
     assert set(QUADRANTES.values()) == set(graficos.PALETA)
     assert set(graficos.ORDEM) == set(graficos.PALETA)
+    assert set(graficos.PALETA_TEXTO) == set(graficos.PALETA)
+
+
+def _quadrante_da_posicao(x: float, y: float) -> str:
+    """O quadrante que a posição no plano implica, sem consultar o classificador."""
+    if y > 0:
+        return "Aquecimento" if x > 0 else "Estagflação"
+    return "Expansão" if x > 0 else "Desaceleração"
+
+
+def test_a_cor_do_ponto_nunca_contradiz_o_lado_da_fronteira():
+    """O ponto é pintado pelo quadrante do mês, não pelo regime vigente.
+
+    Os dois discordam enquanto a persistência não confirma uma virada, e pintar
+    pelo vigente produzia ponto verde dentro da faixa amarela: a cor negando o
+    eixo. O olho lê posição antes de cor, então quem cede é a cor.
+    """
+    reg = dados.regime_mensal()
+    grafico = graficos.mapa_de_quadrantes(reg, meses=24)
+    especificacao = grafico.to_dict()
+
+    pintados = [
+        camada for camada in especificacao["layer"]
+        if camada.get("mark", {}).get("type") == "circle"
+    ]
+    assert len(pintados) == 1, "o mapa deveria ter uma única camada de pontos"
+    assert pintados[0]["encoding"]["color"]["field"] == "quadrante_bruto"
+
+    recorte = reg[reg["quadrante"].notna()].tail(24)
+    for _, mes in recorte.iterrows():
+        assert mes["quadrante_bruto"] == _quadrante_da_posicao(
+            mes["distancia_crescimento"], mes["distancia_inflacao"]
+        ), f"{mes['data_referencia']}: a cor cairia fora da faixa onde o ponto está"
+
+
+def test_o_nome_do_quadrante_fica_dentro_do_proprio_quadrante():
+    """O recuo é fração do lado, não do eixo inteiro.
+
+    Com o recuo medido no eixo inteiro, "Aquecimento" ia parar a cinco pixels da
+    linha do zero — nomeando a linha, não a região — porque a metade de cima do
+    eixo de inflação é uma faixa fina. O caso extremo abaixo é justamente esse.
+    """
+    for limite_y in ([-12.0, 0.4], [-0.4, 12.0], [-5.0, 5.0]):
+        cantos = graficos._cantos([-8.0, 3.0], limite_y)
+        for _, nome in cantos.iterrows():
+            assert _quadrante_da_posicao(nome["x"], nome["y"]) == nome["quadrante"], (
+                f"{nome['quadrante']} desenhado fora do seu quadrante "
+                f"com o eixo em {limite_y}"
+            )

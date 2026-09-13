@@ -13,7 +13,13 @@ tempo compartilhado.
 de inflação se move — é a mediana expansiva do próprio histórico. Com valores
 crus, a fronteira do quadrante seria uma linha que anda e o leitor teria que
 adivinhar onde ela estava em cada mês; com a distância, a fronteira é o zero em
-todos os meses e o quadrante que se vê é o que o classificador diz.
+todos os meses e a posição do ponto diz, sozinha, em que quadrante o mês caiu.
+
+**No mapa, a cor do ponto vem da posição, e não do regime vigente.** As duas
+discordam enquanto a regra de persistência não confirma uma virada, e pintar
+pelo vigente colocava pontos verdes dentro da faixa amarela: a cor
+contradizendo o eixo, que é o que o olho lê primeiro. O regime em vigor voltou
+como anel em volta do ponto, só nos meses em que há discordância.
 """
 
 from __future__ import annotations
@@ -29,6 +35,17 @@ PALETA = {
     "Aquecimento": "#e9c46a",
     "Estagflação": "#c1444f",
     "Desaceleração": "#4a6fa5",
+}
+
+# As mesmas quatro cores escurecidas até terem contraste sobre fundo claro.
+# Cor de área e cor de texto não são a mesma coisa: o âmbar do quadrante lê bem
+# como faixa e some como letra, e era ele que fazia o nome "Aquecimento"
+# desaparecer contra o branco.
+PALETA_TEXTO = {
+    "Expansão": "#1c6f66",
+    "Aquecimento": "#8a6a12",
+    "Estagflação": "#8f2d36",
+    "Desaceleração": "#35507a",
 }
 
 ORDEM = ("Expansão", "Aquecimento", "Desaceleração", "Estagflação")
@@ -156,34 +173,93 @@ def _dominio(valores: pd.Series, *, folga: float = 0.12) -> list[float]:
     return [baixo - margem, alto + margem]
 
 
+def _regioes(limite_x: list[float], limite_y: list[float]) -> pd.DataFrame:
+    """Os quatro quadrantes como área, não como duas linhas para cruzar de cabeça.
+
+    Duas linhas tracejadas obrigam o leitor a intersectar dois sinais para saber
+    onde um ponto caiu. Tingir a região dá a resposta antes da pergunta — e, de
+    quebra, torna impossível esconder uma cor de ponto que discorde do lugar
+    onde ele está.
+    """
+    return pd.DataFrame([
+        {"x": 0.0, "x2": limite_x[1], "y": 0.0, "y2": limite_y[1],
+         "quadrante": "Aquecimento"},
+        {"x": 0.0, "x2": limite_x[1], "y": limite_y[0], "y2": 0.0,
+         "quadrante": "Expansão"},
+        {"x": limite_x[0], "x2": 0.0, "y": 0.0, "y2": limite_y[1],
+         "quadrante": "Estagflação"},
+        {"x": limite_x[0], "x2": 0.0, "y": limite_y[0], "y2": 0.0,
+         "quadrante": "Desaceleração"},
+    ]).assign(cor=lambda d: [PALETA[q] for q in d["quadrante"]])
+
+
+def _recuado(limite: list[float], *, positivo: bool, recuo: float) -> float:
+    """Um ponto dentro da metade pedida do eixo, recuado da borda externa.
+
+    O recuo é fração do **próprio lado**, não do eixo inteiro. Essa distinção
+    não é decorativa: o eixo de inflação passa a maior parte do tempo abaixo do
+    corte, então a metade de cima é uma faixa fina, e recuar pela altura total
+    empurrava "Aquecimento" para cinco pixels da linha do zero. O nome parava de
+    identificar a região e passava a parecer a legenda da linha.
+    """
+    borda = limite[1] if positivo else limite[0]
+    return borda - borda * recuo
+
+
 def _cantos(limite_x: list[float], limite_y: list[float],
-            *, recuo: float = 0.14) -> pd.DataFrame:
-    """Os quatro nomes de quadrante, recuados para dentro dos cantos.
+            *, recuo: float = 0.16) -> pd.DataFrame:
+    """Os quatro nomes de quadrante, recuados para dentro do **seu** quadrante.
 
     Vega-Lite não aceita `align`/`baseline` como canal de codificação, então o
     recuo é feito na posição: cada nome entra um pouco no seu canto e a
     ancoragem padrão (centro) resolve o resto.
     """
-    largura = (limite_x[1] - limite_x[0]) * recuo
-    altura = (limite_y[1] - limite_y[0]) * recuo
-    esquerda, direita = limite_x[0] + largura, limite_x[1] - largura
-    baixo, cima = limite_y[0] + altura, limite_y[1] - altura
+    def ponto(nome: str, *, x: bool, y: bool) -> dict:
+        return {
+            "x": _recuado(limite_x, positivo=x, recuo=recuo),
+            "y": _recuado(limite_y, positivo=y, recuo=recuo),
+            "quadrante": nome,
+            "cor": PALETA_TEXTO[nome],
+        }
+
     return pd.DataFrame([
-        {"x": direita, "y": cima, "quadrante": "Aquecimento"},
-        {"x": direita, "y": baixo, "quadrante": "Expansão"},
-        {"x": esquerda, "y": cima, "quadrante": "Estagflação"},
-        {"x": esquerda, "y": baixo, "quadrante": "Desaceleração"},
+        ponto("Aquecimento", x=True, y=True),
+        ponto("Expansão", x=True, y=False),
+        ponto("Estagflação", x=False, y=True),
+        ponto("Desaceleração", x=False, y=False),
     ])
 
 
 def mapa_de_quadrantes(reg: pd.DataFrame, *, meses: int = 24) -> alt.LayerChart:
     """Os últimos meses no plano crescimento × inflação, em distância ao corte.
 
+    **A cor do ponto é a do quadrante onde ele está, e não a do regime vigente.**
+    Os dois discordam enquanto a regra de persistência não confirma uma virada:
+    o mês já cruzou a fronteira, mas o regime em vigor ainda é o anterior.
+    Pintando pelo vigente, abril e maio de 2025 saíam verdes dentro da faixa
+    amarela — a cor negando o eixo, que é o que o olho lê primeiro, e sem nada na
+    tela dizendo por quê.
+
+    O regime vigente voltou como **anel**, desenhado só nos meses em que os dois
+    discordam. Assim a contradição deixa de ser ruído de leitura e vira a
+    informação mais interessante do gráfico: o anel é o atraso da regra de
+    persistência, visível no lugar onde ele acontece.
+
     O caminho importa mais que o ponto: dois meses no mesmo quadrante podem estar
     indo em direções opostas, e é a trajetória que mostra isso.
     """
     recorte = reg[reg["quadrante"].notna()].tail(meses).copy()
     recorte["rotulo"] = recorte["data"].dt.strftime("%m/%Y")
+    recorte["situacao"] = [
+        "confirmado" if not aguardando else
+        f"{n} mês do novo sinal" if n == 1 else f"{n} meses do novo sinal"
+        for aguardando, n in zip(
+            recorte["pendente"].notna(),
+            recorte["meses_pendente"].fillna(0).astype(int),
+            strict=True,
+        )
+    ]
+    aguardando = recorte[recorte["pendente"].notna()]
     ultimo = recorte.tail(1)
 
     # O domínio é forçado a conter o zero nos dois eixos. Sem isso, um período em
@@ -193,12 +269,25 @@ def mapa_de_quadrantes(reg: pd.DataFrame, *, meses: int = 24) -> alt.LayerChart:
     limite_x = _dominio(recorte["distancia_crescimento"])
     limite_y = _dominio(recorte["distancia_inflacao"])
 
-    fundo = alt.Chart(_cantos(limite_x, limite_y)).mark_text(
-        fontSize=12, opacity=0.5, fontWeight="bold",
+    # As faixas vêm primeiro, e com a escala explícita: são a camada de base do
+    # `layer`, e é delas que as outras herdam o domínio.
+    faixas = alt.Chart(_regioes(limite_x, limite_y)).mark_rect(opacity=0.10).encode(
+        x=alt.X("x:Q", scale=alt.Scale(domain=limite_x, nice=False), title=None),
+        x2=alt.X2("x2:Q"),
+        y=alt.Y("y:Q", scale=alt.Scale(domain=limite_y, nice=False), title=None),
+        y2=alt.Y2("y2:Q"),
+        # `scale=None` usa o hex da própria coluna. Sem escala não há domínio a
+        # conciliar com as outras camadas de cor, que é onde o gráfico empilhado
+        # deste painel já quebrou uma vez.
+        color=alt.Color("cor:N", scale=None, legend=None),
+    )
+
+    nomes = alt.Chart(_cantos(limite_x, limite_y)).mark_text(
+        fontSize=12, fontWeight="bold", opacity=0.85,
     ).encode(
         x=alt.X("x:Q"), y=alt.Y("y:Q"),
         text=alt.Text("quadrante:N"),
-        color=alt.Color("quadrante:N", scale=_escala_quadrante(), legend=None),
+        color=alt.Color("cor:N", scale=None, legend=None),
     )
 
     eixo_x = alt.Chart(pd.DataFrame({"v": [0.0]})).mark_rule(
@@ -214,22 +303,39 @@ def mapa_de_quadrantes(reg: pd.DataFrame, *, meses: int = 24) -> alt.LayerChart:
         order=alt.Order("data:T"),
     )
 
+    dica = [
+        alt.Tooltip("rotulo:N", title="Mês"),
+        alt.Tooltip("quadrante_bruto:N", title="Quadrante do mês"),
+        alt.Tooltip("quadrante:N", title="Regime vigente"),
+        alt.Tooltip("situacao:N", title="Persistência"),
+        alt.Tooltip("eixo_crescimento:Q", title="Crescimento", format=".2f"),
+        alt.Tooltip("eixo_inflacao:Q", title="Inflação", format=".2f"),
+        alt.Tooltip("corte_inflacao:Q", title="Corte de inflação", format=".2f"),
+    ]
+
     pontos = alt.Chart(recorte).mark_circle(size=95).encode(
         x=alt.X("distancia_crescimento:Q",
-                title="Crescimento − corte (p.p. anualizados)",
-                scale=alt.Scale(domain=limite_x, nice=False)),
+                title="Crescimento − corte (p.p. anualizados)"),
         y=alt.Y("distancia_inflacao:Q",
-                title="Inflação − corte (p.p. anualizados)",
-                scale=alt.Scale(domain=limite_y, nice=False)),
+                title="Inflação − corte (p.p. anualizados)"),
+        # Pelo quadrante **do mês**, que é o que a posição já diz. A cor aqui é
+        # redundante de propósito: redundância reforça, contradição confunde.
+        color=alt.Color("quadrante_bruto:N", scale=_escala_quadrante(), legend=None),
+        # A faixa de opacidade não desce abaixo de 0,45: sobre a região tingida,
+        # um ponto a 0,3 perdia a cor e virava um borrão cinza.
+        opacity=alt.Opacity("data:T", legend=None, scale=alt.Scale(range=[0.45, 1])),
+        tooltip=dica,
+    )
+
+    # Só os meses em que o vigente discorda da posição. O anel leva a cor do
+    # regime que ainda está em vigor: o ponto mudou de lado, o crachá não.
+    anel = alt.Chart(aguardando).mark_point(
+        size=250, filled=False, strokeWidth=2.5, opacity=0.95,
+    ).encode(
+        x=alt.X("distancia_crescimento:Q"),
+        y=alt.Y("distancia_inflacao:Q"),
         color=alt.Color("quadrante:N", scale=_escala_quadrante(), legend=None),
-        opacity=alt.Opacity("data:T", legend=None, scale=alt.Scale(range=[0.3, 1])),
-        tooltip=[
-            alt.Tooltip("rotulo:N", title="Mês"),
-            alt.Tooltip("quadrante:N", title="Quadrante"),
-            alt.Tooltip("eixo_crescimento:Q", title="Crescimento", format=".2f"),
-            alt.Tooltip("eixo_inflacao:Q", title="Inflação", format=".2f"),
-            alt.Tooltip("corte_inflacao:Q", title="Corte de inflação", format=".2f"),
-        ],
+        tooltip=dica,
     )
 
     destaque = alt.Chart(ultimo).mark_point(
@@ -245,8 +351,8 @@ def mapa_de_quadrantes(reg: pd.DataFrame, *, meses: int = 24) -> alt.LayerChart:
     )
 
     return alt.layer(
-        fundo, eixo_x, eixo_y, caminho, pontos, destaque, etiqueta
-    ).properties(height=420)
+        faixas, nomes, eixo_x, eixo_y, caminho, pontos, anel, destaque, etiqueta
+    ).resolve_scale(color="independent").properties(height=420)
 
 
 def historico_de_surpresa(tabela: pd.DataFrame, *, desvio: float) -> alt.LayerChart:

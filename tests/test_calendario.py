@@ -61,6 +61,33 @@ def test_evento_sem_data_e_descartado(monkeypatch):
     assert calendario.buscar({9256: ["ipca"]}).empty
 
 
+def test_nao_reescreve_quando_so_o_carimbo_de_tempo_muda(tmp_path, monkeypatch):
+    """Senão o Git encheria de commits diários que não dizem nada."""
+    monkeypatch.setattr(calendario, "CAMINHO", tmp_path / "calendario.parquet")
+    monkeypatch.setattr(calendario, "_buscar_produto", lambda *a, **k: [{
+        "titulo": "IPCA", "nome_produto": "IPCA",
+        "data_divulgacao": "09/10/2026 12:00:00",
+        "ano_referencia_inicio": 2026, "mes_referencia_inicio": 9,
+    }])
+
+    assert calendario.salvar(calendario.buscar({9256: ["ipca"]})) is True
+    assert calendario.salvar(calendario.buscar({9256: ["ipca"]})) is False
+
+
+def test_reescreve_quando_o_ibge_remarca_uma_data(tmp_path, monkeypatch):
+    monkeypatch.setattr(calendario, "CAMINHO", tmp_path / "calendario.parquet")
+    evento = {"titulo": "IPCA", "nome_produto": "IPCA",
+              "data_divulgacao": "09/10/2026 12:00:00",
+              "ano_referencia_inicio": 2026, "mes_referencia_inicio": 9}
+
+    monkeypatch.setattr(calendario, "_buscar_produto", lambda *a, **k: [evento])
+    calendario.salvar(calendario.buscar({9256: ["ipca"]}))
+
+    remarcado = dict(evento, data_divulgacao="13/10/2026 12:00:00")
+    monkeypatch.setattr(calendario, "_buscar_produto", lambda *a, **k: [remarcado])
+    assert calendario.salvar(calendario.buscar({9256: ["ipca"]})) is True
+
+
 def test_falha_do_calendario_nao_derruba_o_pipeline(monkeypatch):
     """Papel auxiliar: se o calendário cair, a ingestão continua."""
     def explode(*a, **k):

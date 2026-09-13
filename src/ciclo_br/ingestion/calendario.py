@@ -117,15 +117,28 @@ def buscar(
     return df.reset_index(drop=True)
 
 
-def salvar(df: pd.DataFrame) -> None:
-    """Grava o instantâneo do calendário.
+def salvar(df: pd.DataFrame) -> bool:
+    """Grava o instantâneo do calendário; devolve se algo mudou de fato.
 
     Diferente das observações, o calendário é **substituído** a cada coleta: ele
     é metadado derivado e mutável (o IBGE remarca datas), não um fato datado que
     precise ser preservado. A regra de nunca sobrescrever vale para observação.
+
+    Mas a gravação só acontece se o conteúdo mudou, ignorando `coletado_em`. Sem
+    esse cuidado o arquivo seria reescrito todo dia só porque o carimbo de tempo é
+    novo, e o histórico do Git encheria de commits que não dizem nada.
     """
     CAMINHO.parent.mkdir(parents=True, exist_ok=True)
+
+    if CAMINHO.exists():
+        anterior = pd.read_parquet(CAMINHO)
+        colunas = [c for c in df.columns if c != "coletado_em"]
+        if anterior.drop(columns=["coletado_em"], errors="ignore").equals(df[colunas]):
+            log.info("calendário sem alteração — arquivo mantido")
+            return False
+
     df.to_parquet(CAMINHO, index=False, compression="zstd")
+    return True
 
 
 def carregar() -> pd.DataFrame:

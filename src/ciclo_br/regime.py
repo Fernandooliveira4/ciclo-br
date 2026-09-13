@@ -14,12 +14,22 @@ datação do CODACE contém três recessões. Com três eventos, qualquer modelo
 muitos parâmetros estaria sendo ajustado ao ruído. Uma regra de sinal é
 auditável, explicável em uma frase, e honesta quanto ao tamanho da amostra.
 
-**Persistência.** Aplicada crua, a regra trocaria de quadrante 44 vezes em 277
-meses, com um terço dos episódios durando dois meses ou menos — ruído
-apresentado como mudança de regime. Por isso uma troca só é confirmada após
-`MESES_PERSISTENCIA` meses consecutivos do novo sinal. Enquanto não confirma, o
-estado anterior permanece vigente e a mudança fica marcada como **pendente**, o
-que o painel mostra em vez de esconder.
+**Persistência, e por que ela é por eixo.** Aplicada crua, a regra trocaria de
+quadrante dezenas de vezes, com um terço dos episódios durando dois meses ou
+menos — ruído apresentado como mudança de regime. Por isso uma virada só é
+confirmada após `MESES_PERSISTENCIA` meses consecutivos do novo sinal.
+
+A confirmação é feita **em cada eixo separadamente**, e não no rótulo de quatro
+estados. A primeira versão desta camada contava meses do quadrante inteiro, e a
+validação contra o CODACE mostrou que isso trava: com o crescimento firme acima
+do corte, alternar entre "Expansão" e "Aquecimento" — que diferem só no eixo de
+inflação — zerava o contador a cada mês, e o eixo de crescimento nunca
+confirmava a virada. Um episódio de contração chegou a durar 116 meses por esse
+motivo. O quadrante é a leitura conjunta de duas afirmações independentes; cada
+uma precisa do seu próprio prazo de confirmação. Há teste nomeado para isso.
+
+Enquanto não confirma, o estado anterior permanece vigente e a mudança fica
+marcada como **pendente**, o que o painel mostra em vez de esconder.
 
 O custo dessa regra é atraso, e atraso é exatamente o que a validação mede. Por
 isso a camada expõe também o quadrante **sem** persistência: a comparação com a
@@ -47,6 +57,11 @@ MESES_PERSISTENCIA = 3
 
 # Mínimo de história antes de o corte expansivo significar alguma coisa.
 MINIMO_PARA_CORTE = 60
+
+# Cortes possíveis para o eixo de crescimento. O projeto usa "mediana"; "zero"
+# existe para que a camada de validação meça a alternativa sem que o
+# classificador troque de critério por conta própria.
+CORTES_CRESCIMENTO = ("mediana", "zero")
 
 QUADRANTES = {
     (True, True): "Aquecimento",      # cresce e pressiona preços
@@ -86,42 +101,93 @@ def classificar_bruto(
     return pd.Series(rotulos, index=crescimento.index, dtype="object")
 
 
-def aplicar_persistencia(
-    bruto: pd.Series, *, meses: int = MESES_PERSISTENCIA
-) -> pd.DataFrame:
-    """Confirma a troca só depois de `meses` consecutivos do novo sinal.
+def confirmar(sinal: pd.Series, *, meses: int = MESES_PERSISTENCIA) -> pd.DataFrame:
+    """Confirma a virada de **um** sinal binário após `meses` meses seguidos.
 
-    Devolve o quadrante vigente, o candidato ainda não confirmado (se houver) e
-    há quantos meses ele está pendente — a informação que o painel precisa para
-    dizer "mudou, mas ainda não confirmou".
+    Devolve `vigente`, o sinal já confirmado, e `tentando`, há quantos meses o
+    sinal cru discorda do vigente. Como o sinal é binário, não existe o problema
+    de "candidato que muda": ou o mês concorda com o vigente e zera a contagem,
+    ou discorda e soma mais um.
     """
-    vigente: str | None = None
-    candidato: str | None = None
+    vigente: bool | None = None
     contador = 0
+    vigentes: list[bool] = []
+    tentativas: list[int] = []
 
-    linhas = []
-    for data, atual in bruto.items():
-        if atual is None:
-            linhas.append((data, None, None, 0))
-            continue
-
-        if vigente is None:
-            vigente, candidato, contador = atual, None, 0
-        elif atual == vigente:
-            candidato, contador = None, 0
+    for valor in sinal:
+        atual = bool(valor)
+        if vigente is None or atual == vigente:
+            vigente, contador = atual, 0
         else:
-            if atual == candidato:
-                contador += 1
-            else:
-                candidato, contador = atual, 1
+            contador += 1
             if contador >= meses:
-                vigente, candidato, contador = atual, None, 0
+                vigente, contador = atual, 0
+        vigentes.append(vigente)
+        tentativas.append(contador)
 
-        linhas.append((data, vigente, candidato, contador))
+    return pd.DataFrame({"vigente": vigentes, "tentando": tentativas}, index=sinal.index)
+
+
+def aplicar_persistencia(
+    acima_crescimento: pd.Series,
+    acima_inflacao: pd.Series,
+    *,
+    meses: int = MESES_PERSISTENCIA,
+) -> pd.DataFrame:
+    """Quadrante vigente a partir dos dois eixos confirmados separadamente.
+
+    Devolve o quadrante vigente, o quadrante cru quando ele discorda do vigente
+    (`pendente`) e há quantos meses alguma virada está esperando confirmação —
+    a informação que o painel precisa para dizer "mudou, mas ainda não
+    confirmou".
+    """
+    g = confirmar(acima_crescimento, meses=meses)
+    i = confirmar(acima_inflacao, meses=meses)
+
+    quadrante = [QUADRANTES[(a, b)] for a, b in zip(g["vigente"], i["vigente"], strict=True)]
+    cru = [
+        QUADRANTES[(bool(a), bool(b))]
+        for a, b in zip(acima_crescimento, acima_inflacao, strict=True)
+    ]
+    espera = np.maximum(g["tentando"].to_numpy(), i["tentando"].to_numpy())
+    pendente = [c if m > 0 else None for c, m in zip(cru, espera, strict=True)]
 
     return pd.DataFrame(
-        linhas, columns=["data_referencia", "quadrante", "pendente", "meses_pendente"]
-    ).set_index("data_referencia")
+        {"quadrante": quadrante, "pendente": pendente, "meses_pendente": espera},
+        index=acima_crescimento.index,
+    )
+
+
+def sinais(reg: pd.DataFrame, *, corte_crescimento: str = "mediana") -> tuple[pd.Series, pd.Series]:
+    """Os dois sinais binários de um regime já calculado, indexados por mês.
+
+    Só os meses em que os dois cortes existem. É o que a camada de validação
+    consome para reaplicar a persistência com outros prazos.
+
+    `corte_crescimento` escolhe contra o que o momentum é comparado:
+
+    - ``"mediana"``: a mediana expansiva gravada em `corte_crescimento`. É o
+      corte vigente, e responde "cresce acima do padrão histórico brasileiro?".
+    - ``"zero"``: momentum zero, isto é, nível de atividade caindo. Responde
+      "está encolhendo?", que é mais próximo do que o CODACE data.
+
+    Os dois existem aqui para que a validação possa medir os dois sem que o
+    classificador mude de opinião por conta própria. O padrão do projeto
+    continua sendo a mediana.
+    """
+    if corte_crescimento not in CORTES_CRESCIMENTO:
+        raise ValueError(f"corte desconhecido: {corte_crescimento!r}")
+
+    indice = pd.PeriodIndex(pd.to_datetime(reg["data_referencia"]), freq="M")
+    valido = (reg["corte_crescimento"].notna() & reg["corte_inflacao"].notna()).to_numpy()
+    limite = (
+        reg["corte_crescimento"].to_numpy() if corte_crescimento == "mediana" else 0.0
+    )
+    acima_g = pd.Series(reg["eixo_crescimento"].to_numpy() > limite, index=indice)
+    acima_i = pd.Series(
+        reg["eixo_inflacao"].to_numpy() > reg["corte_inflacao"].to_numpy(), index=indice
+    )
+    return acima_g[valido], acima_i[valido]
 
 
 def construir() -> pd.DataFrame:
@@ -143,7 +209,15 @@ def construir() -> pd.DataFrame:
     bruto = classificar_bruto(
         eixos["eixo_crescimento"], eixos["eixo_inflacao"], corte_g, corte_i
     )
-    persistente = aplicar_persistencia(bruto)
+
+    # A persistência só corre nos meses já classificáveis; antes disso não há
+    # corte e portanto não há sinal para confirmar.
+    valido = corte_g.notna() & corte_i.notna()
+    persistente = aplicar_persistencia(
+        (eixos["eixo_crescimento"] > corte_g)[valido],
+        (eixos["eixo_inflacao"] > corte_i)[valido],
+    ).reindex(eixos.index)
+    persistente["meses_pendente"] = persistente["meses_pendente"].fillna(0)
 
     regime = pd.DataFrame({
         "data_referencia": [d.date() for d in eixos.index],

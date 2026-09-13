@@ -169,17 +169,25 @@ história e o eixo de crescimento começa em junho de 2003. As três recessões 
 janela de validação (2008-09, 2014-16 e 2020) ficam cobertas, mas os cinco
 primeiros anos da série não são classificados.
 
-**Persistência de 3 meses.** Aplicada crua, a regra trocaria de quadrante 52 vezes
-em 277 meses, com um terço dos episódios durando dois meses ou menos — ruído
-apresentado como mudança de regime. Uma troca só é confirmada após três meses
-consecutivos do novo sinal, o que reduz as trocas para 24. Enquanto não confirma,
-o estado anterior permanece vigente e o candidato fica marcado como **pendente**,
-exibido no painel em vez de escondido.
+**Persistência de 3 meses, confirmada por eixo.** Aplicada crua, a regra trocaria
+de quadrante 52 vezes em 277 meses, com um terço dos episódios durando dois meses
+ou menos — ruído apresentado como mudança de regime. Uma troca só é confirmada
+após três meses consecutivos do novo sinal, o que reduz as trocas para 33.
+Enquanto não confirma, o estado anterior permanece vigente e o candidato fica
+marcado como **pendente**, exibido no painel em vez de escondido.
 
-O custo da persistência é atraso, e atraso é exatamente o que a validação da
-seção 7 mede. Por isso a camada guarda também o quadrante **sem** persistência: a
-defasagem contra a cronologia do CODACE será medida nas duas versões, e o
-parâmetro deixa de ser escolhido por gosto para ser escolhido contra evidência.
+A confirmação corre **em cada eixo separadamente**, e não no rótulo de quatro
+estados. A primeira versão contava meses do quadrante inteiro, e a validação da
+seção 7 mostrou que isso trava: com o crescimento firme acima do corte, alternar
+entre "Expansão" e "Aquecimento" — que diferem apenas no eixo de inflação — zerava
+o contador todo mês, e a virada do crescimento nunca confirmava. Na série real
+isso produziu um episódio de contração de **116 meses**. O quadrante é a leitura
+conjunta de duas afirmações independentes, e cada uma precisa do seu próprio prazo
+de confirmação. Há teste de regressão nomeado.
+
+O custo da persistência é atraso, e atraso é exatamente o que a seção 7 mede. O
+prazo de três meses deixou de ser escolha de gosto: é o resultado da varredura
+registrada lá.
 
 **Aderência a episódios conhecidos** (verificação de 12/09/2026):
 
@@ -261,26 +269,137 @@ Duas consequências desse desenho:
 
 ---
 
-## 7. Validação
+## 7. Validação contra a datação do CODACE
 
-A cronologia oficial de ciclos do CODACE (FGV/IBRE) não é publicada em formato
-estruturado — é imagem e comunicados em PDF — e será transcrita à mão para um CSV
-versionado, com citação do comunicado de origem.
+### 7.1 A cronologia, e por que ela deu trabalho
 
-A janela de sobreposição entre o IBC-Br (desde 2003) e a datação do CODACE (que
-termina no vale do 2º tri/2020) contém **três recessões**: 2008-09, 2014-16 e
-2020.
+O CODACE (FGV/IBRE) é o comitê que data oficialmente os ciclos de negócios
+brasileiros — o equivalente ao comitê do NBER nos Estados Unidos. Ele **não
+publica a cronologia em formato estruturado**. A datação trimestral existe dentro
+do texto de comunicados em PDF; a datação **mensal**, que é a que interessa aqui,
+existe apenas como uma tabela em imagem.
 
-**É por isso que o classificador é uma regra de sinal e não um modelo
-estimado.** Com três eventos de validação, qualquer modelo com muitos parâmetros
-estaria sendo ajustado ao ruído. A métrica principal não é taxa de acerto e sim
-**defasagem**: quantos meses antes ou depois o sinal vira em relação à data
-oficial. Um classificador que acerta todas as recessões cinco meses atrasado é
-inútil, e a matriz de confusão sozinha não mostra isso.
+A transcrição está em [`config/codace_cronologia.csv`](../config/codace_cronologia.csv),
+com a proveniência de cada linha no cabeçalho do arquivo. A imagem de origem está
+versionada em [`docs/fontes/codace_cronologia_mensal.png`](fontes/codace_cronologia_mensal.png),
+tal como baixada, para que a transcrição possa ser conferida a olho.
 
-**Assimetria a declarar:** o CODACE anuncia com muitos meses de atraso. Se o
-classificador "ganhar" do comitê, isso não é mérito — ele tem a série completa e
-o comitê, na época, não tinha.
+**Convenção de datação.** O comunicado de 30/10/2017 define explicitamente, para
+os trimestres: o pico "equivale ao final de um período de expansão, que será
+seguido, no trimestre seguinte, pelo início de uma recessão"; o vale "equivale ao
+trimestre final de uma recessão". A mesma convenção foi aplicada aos meses — a
+recessão ocupa `pico`+1 até `vale`.
+
+**A convenção é verificável, e foi verificada.** Pela datação mensal, a recessão
+de 2014-2016 vai de abril de 2014 a dezembro de 2016: 33 meses. Pela datação
+trimestral do comunicado de 2017, do 2º tri de 2014 ao 4º tri de 2016: 11
+trimestres, também 33 meses. As duas fontes, publicadas em documentos diferentes,
+fecham exatamente. Há teste que quebra se a transcrição escorregar um mês.
+
+**Duas irregularidades da fonte, registradas em vez de alisadas:**
+
+- Para 2008, a datação mensal põe o vale em dezembro de 2008 e a trimestral põe no
+  1º trimestre de 2009. É divergência da própria fonte, não erro de transcrição.
+- A recessão da covid **nunca foi datada em meses**. O CODACE publicou apenas
+  pico no 4º tri de 2019 e vale no 2º tri de 2020 (comunicado de 31/01/2023). Os
+  meses usados aqui são o último mês de cada trimestre, derivados por nós, e a
+  linha está marcada como `granularidade = trimestral`. A defasagem medida contra
+  essa recessão carrega a imprecisão de até um trimestre.
+
+### 7.2 O que está sendo comparado — e o que não está
+
+O CODACE data **recessões**: queda disseminada do nível de atividade. O eixo de
+crescimento deste projeto mede **momentum abaixo de um corte**. São objetos
+diferentes, e o sinal fica abaixo do corte muito mais vezes do que a economia
+entra em recessão.
+
+Por isso a métrica principal é a **defasagem** — quantos meses o sinal se antecipa
+ou atrasa em cada ponta — e não taxa de acerto. Taxa de acerto penalizaria o sinal
+por fazer exatamente aquilo para que foi construído.
+
+- defasagem no pico = mês de entrada em contração − (`pico` + 1)
+- defasagem no vale = mês de saída da contração − (`vale` + 1)
+
+Negativo é antecipação, positivo é atraso. Antecipar não é automaticamente melhor:
+um sinal que se antecipa sempre é um sinal que também grita em falso, e os dois
+números só fazem sentido lidos junto com a fração de meses em que o sinal está
+ligado.
+
+**Janela de validação: três recessões** (2008, 2014-2016 e 2020). A classificação
+começa em maio de 2008 e a datação do CODACE termina no vale do 2º tri de 2020.
+Com três eventos, qualquer modelo com parâmetros estimados estaria sendo ajustado
+ao ruído — é esta a razão de o classificador ser uma regra de sinal.
+
+**Assimetrias declaradas:**
+
+- O CODACE anuncia com anos de atraso: o vale de 2020 só foi datado em janeiro de
+  2023. Se o classificador "ganhar" do comitê, isso **não é mérito** — ele tem a
+  série completa e o comitê, na época, não tinha.
+- Depois do último vale datado, a ausência de um novo pico não significa ausência
+  de recessão. Episódios do sinal nessa ponta são contados à parte, como não
+  avaliáveis.
+- A recessão de 2008 começa quatro meses depois do início da classificação. Não há
+  pista suficiente antes dela, e a linha está marcada como cobertura `parcial`: o
+  truncamento só encurta a antecipação aparente, nunca a alonga.
+
+### 7.3 O resultado
+
+Gerado por `ciclo-validar`, versionado em
+[`data/derivado/validacao_resumo.csv`](../data/derivado/validacao_resumo.csv) e
+[`data/derivado/validacao_defasagens.csv`](../data/derivado/validacao_defasagens.csv),
+e reverificado na CI. A janela avaliável tem 146 meses, dos quais 43 são de
+recessão datada.
+
+| Corte | Persistência | Recessões detectadas | Defasagem no pico (mediana) | Defasagem no vale | Trocas de quadrante | Episódios fora de recessão | Maior episódio | Fração da janela com sinal ligado |
+|---|---|---|---|---|---|---|---|---|
+| mediana | 1 (sem regra) | 3/3 | 0 | +2 | 52 | 8 | 44 m | 76% |
+| mediana | 2 | 3/3 | +1 | +3 | 46 | 7 | 44 m | 77% |
+| **mediana** | **3 (vigente)** | **3/3** | **−12** | **+4** | **33** | **4** | **54 m** | **81%** |
+| mediana | 4 | 3/3 | −43 | +7 | 15 | 0 | 122 m | 91% |
+| mediana | 5 | 3/3 | −36 | +8 | 13 | 0 | 116 m | 87% |
+| mediana | 6 | 3/3 | −35 | +9 | 10 | 0 | 116 m | 87% |
+| zero | 1 (sem regra) | 3/3 | +2 | +1 | 43 | 5 | 25 m | 40% |
+| zero | 2 | 3/3 | +3 | +2 | 36 | 4 | 25 m | 38% |
+| zero | **3** | 3/3 | +4 | +3 | 28 | 3 | 25 m | 36% |
+| zero | 4 | 2/3 | +3,5 | +4 | 16 | 3 | 35 m | 36% |
+| zero | 5 | 1/3 | +3 | +5 | 14 | 2 | 35 m | 32% |
+| zero | 6 | 1/3 | +4 | +6 | 10 | 2 | 35 m | 32% |
+
+A coluna "maior episódio" e a fração de meses com sinal ligado não são decoração.
+Sem elas, a degeneração apareceria como o melhor resultado da tabela: um prazo de
+confirmação longo demais faz o sinal virar um único bloco que cobre tudo, detecta
+todas as recessões e não tem nenhum falso alarme, porque nunca desliga. É o que
+acontece com a mediana e persistência 4, onde um único episódio de **122 meses**
+engole as recessões de 2014-2016 e de 2020 e produz a "antecipação" de 112 meses
+que aparece na tabela detalhada.
+
+### 7.4 O que a tabela decide, e o que ela abre
+
+**O prazo de persistência está decidido em 3, e por evidência.** Com o corte
+vigente, 3 é o maior valor que ainda não degenera: em 4 o sinal vira um bloco
+único. Com o corte alternativo, 3 é o maior valor que ainda detecta as três
+recessões: em 4 uma delas é perdida. Os dois critérios, independentes, apontam o
+mesmo número. Os valores 1 e 2 continuam disponíveis e custam 46 a 52 trocas de
+quadrante — regime que muda quatro vezes por ano não é regime.
+
+**A tabela abriu uma questão que não estava no roteiro: o corte de crescimento.**
+Entre maio de 2008 e junho de 2020, o momentum brasileiro ficou abaixo da sua
+própria mediana expansiva em **81% dos meses**. Nessa taxa base, "detectou 3 de 3
+recessões" quase não informa: um sinal ligado em quatro de cada cinco meses acerta
+todas por construção. A antecipação de 12 meses também não é antecipação de
+verdade — é o sinal ligando cedo e ficando ligado.
+
+Trocando apenas o corte de crescimento por **zero** — isto é, perguntando "a
+atividade está encolhendo?" em vez de "está crescendo abaixo do padrão histórico?"
+— o sinal passa a ficar ligado em 36% dos meses, o maior episódio cai de 54 para
+25 meses, e a defasagem vira **+4 meses no pico e +3 no vale**. O sinal deixa de
+antecipar e passa a acompanhar com atraso curto, que é o comportamento honesto de
+uma regra de momentum sobre dados publicados com 45 a 60 dias de defasagem.
+
+**Nada foi trocado.** O classificador continua usando a mediana expansiva, que é a
+decisão registrada na seção 8. As duas versões são medidas lado a lado e
+versionadas justamente para que a escolha possa ser revista com números em vez de
+opinião — a troca custa uma linha, e a seção 4c diz qual.
 
 ---
 
@@ -297,3 +416,7 @@ o comitê, na época, não tinha.
 | 2026-09-12 | Guardar só a janela útil de referência do Focus | 90% do volume é projeção que o projeto não usa |
 | 2026-09-12 | Diff da série como único gatilho; calendário auxiliar | evita ponto único de falha e captura revisão de graça |
 | 2026-09-12 | Portões de qualidade reprovam o build | pipeline que quebra alto vale mais que um que grava lixo em silêncio |
+| 2026-09-12 | Persistência confirmada por eixo, não pelo rótulo do quadrante | ruído no outro eixo travava a virada; episódio de 116 meses (seção 4c) |
+| 2026-09-12 | Prazo de persistência fixado em 3 meses | maior valor que não degenera nem perde recessão, nos dois cortes (seção 7.4) |
+| 2026-09-12 | Cronologia do CODACE transcrita à mão, com a imagem de origem versionada | a fonte não publica formato estruturado; transcrição precisa ser auditável (seção 7.1) |
+| 2026-09-12 | Corte de crescimento mantido na mediana expansiva, com a alternativa medida ao lado | a decisão é do autor do projeto; a validação entrega o número, não a troca (seção 7.4) |

@@ -60,6 +60,11 @@ jobs:
       - name: Reclassificar regime
         run: ciclo-regime
 
+      # A cronologia do CODACE é fixa; o que muda é o sinal. Refazer a medição
+      # a cada coleta mantém a tabela de defasagem coerente com o classificador.
+      - name: Remedir defasagem contra o CODACE
+        run: ciclo-validar
+
       - name: Portões de qualidade
         run: ciclo-qualidade
 

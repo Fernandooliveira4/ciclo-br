@@ -10,8 +10,9 @@ contra o consenso do Focus, e publica um briefing — mas só quando há dado no
 ![CI](https://github.com/Fernandooliveira4/ciclo-br/actions/workflows/ci.yml/badge.svg)
 ![Ingestão](https://github.com/Fernandooliveira4/ciclo-br/actions/workflows/ingest.yml/badge.svg)
 
-> **Status:** em construção. Semanas 1 a 4 de 8 concluídas — ingestão, armazenamento,
-> expectativas do Focus, agendamento automático e o classificador de regime.
+> **Status:** em construção. Semanas 1 a 5 de 8 concluídas — ingestão, armazenamento,
+> expectativas do Focus, agendamento automático, o classificador de regime e a
+> validação contra a datação oficial do CODACE.
 > O roteiro completo está em [Roadmap](#roadmap).
 
 ---
@@ -32,8 +33,14 @@ qual dos dois escreveu.
 A série de quadrantes é confrontada com a cronologia de ciclos do CODACE
 (FGV/IBRE), e a métrica principal é a **defasagem** do sinal, não a taxa de
 acerto. A janela de validação contém três recessões, e é exatamente por isso que
-o classificador é uma regra de sinal e não um modelo com parâmetros estimados —
-o raciocínio está em [docs/metodologia.md](docs/metodologia.md).
+o classificador é uma regra de sinal e não um modelo com parâmetros estimados.
+
+A validação não é um selo: ela mudou o projeto. Encontrou um travamento na regra
+de persistência que produzia um episódio de contração de 116 meses, fixou o prazo
+de confirmação em três meses contra evidência em vez de gosto, e mostrou que o
+corte de crescimento em uso deixa o sinal ligado em 81% dos meses da janela. O
+resultado inteiro está em [`data/derivado/validacao_resumo.csv`](data/derivado/validacao_resumo.csv)
+e o raciocínio na [seção 7 da metodologia](docs/metodologia.md).
 
 **3. Nenhum dado é sobrescrito.**
 Não existe base de vintages pública para séries brasileiras. Este projeto
@@ -103,6 +110,7 @@ ciclo-ingest --serie ipca        # uma série só
 ciclo-calendario                 # próximas divulgações do IBGE
 ciclo-transformar                # recalcula eixos (ajuste sazonal + momentum)
 ciclo-regime                     # classifica o quadrante de regime
+ciclo-validar                    # mede a defasagem contra a datação do CODACE
 ciclo-qualidade                  # portões de qualidade (código 1 reprova)
 pytest                           # suíte de testes
 ```
@@ -135,8 +143,14 @@ Estão detalhadas em [docs/metodologia.md](docs/metodologia.md). As principais:
   pela **taxa de desocupação** (mensal) e pelo **PIB** (trimestral) — e o Focus só
   passou a pesquisar desocupação em **agosto de 2021**, então essa metade tem cinco
   anos de história, não vinte.
-- O CODACE anuncia com meses de atraso; o classificador "ganhar" do comitê não é
-  mérito, e isso está dito em vez de escondido.
+- O CODACE anuncia com anos de atraso — o vale de 2020 só foi datado em janeiro de
+  2023. Se o classificador "ganhar" do comitê, isso não é mérito: ele tem a série
+  completa e o comitê, na época, não tinha.
+- A recessão da covid **nunca foi datada em meses** pelo CODACE. Os meses usados na
+  validação são derivados dos trimestres publicados, e a linha está marcada como tal.
+- O corte de crescimento em uso é a mediana do próprio histórico, o que deixa o
+  sinal ligado em 81% dos meses entre 2008 e 2020. A alternativa está medida lado a
+  lado no mesmo arquivo, em vez de argumentada em prosa.
 
 ---
 
@@ -148,7 +162,7 @@ Estão detalhadas em [docs/metodologia.md](docs/metodologia.md). As principais:
 | 2 | Cliente Focus, calendário IBGE, GitHub Actions em cron, portões de qualidade | ✅ concluída |
 | 3 | Ajuste sazonal recursivo, momentum, auditoria da quebra dos núcleos | ✅ concluída |
 | 4 | Classificador de quadrante | ✅ concluída |
-| 5 | Transcrição do CODACE e medição de defasagem | — |
+| 5 | Transcrição do CODACE e medição de defasagem | ✅ concluída |
 | 6 | Surpresas realizado × Focus | — |
 | 7 | Dashboard Streamlit (5 páginas, com Metodologia) | — |
 | 8 | Briefing com LLM, modo replay para demonstração, publicação | — |

@@ -1,0 +1,45 @@
+# Cronologia de referência dos ciclos de negócios brasileiros — CODACE / FGV IBRE.
+#
+# PROVENIÊNCIA. O CODACE não publica esta cronologia em formato estruturado. A
+# datação MENSAL existe apenas como uma tabela em imagem, e a datação TRIMESTRAL
+# apenas dentro do texto dos comunicados em PDF. As linhas abaixo foram
+# transcritas à mão a partir das fontes citadas, em 2026-09-12:
+#
+#   [png-mensal]  https://ciclo-economico-ibre.fgv.br/cronologia.png
+#                 Tabela "Pico / Vale / Meses do pico ao vale". Cópia do arquivo
+#                 tal como baixado está versionada em
+#                 docs/fontes/codace_cronologia_mensal.png — a transcrição pode
+#                 ser conferida abrindo a imagem.
+#   [pdf-2023]    Comunicado do CODACE de 31/01/2023 (Rio de Janeiro, 02/02/2023)
+#                 https://portalibre.fgv.br/sites/default/files/2023-02/comunicado-do-comite-de-datacao-de-ciclos-economicos-31_01_2023_minuta.pdf
+#   [pdf-2017]    Comunicado do CODACE de 27/10/2017 (Rio de Janeiro, 30/10/2017)
+#                 https://portalibre.fgv.br/sites/default/files/2020-03/comite-de-data_o-de-ciclos-econ_micos-comunicado-de-30_10_2017-_1_.pdf
+#
+# CONVENÇÃO. O comunicado de 2017 define explicitamente, para a datação
+# trimestral: o pico "equivale ao final de um período de expansão, que será
+# seguido, no trimestre seguinte, pelo início de uma recessão"; o vale "equivale
+# ao trimestre final de uma recessão". Este arquivo aplica a mesma convenção aos
+# meses: a recessão ocupa os meses de `pico`+1 até `vale`, inclusive.
+#
+# A convenção é verificável. Pela datação mensal, a recessão de 2014-2016 vai de
+# abril de 2014 a dezembro de 2016: 33 meses. Pela datação trimestral, do 2º tri
+# de 2014 ao 4º tri de 2016: 11 trimestres, também 33 meses. As duas datações
+# fecham exatamente.
+#
+# granularidade = mensal  -> `pico` e `vale` foram publicados em meses.
+# granularidade = trimestral -> o CODACE só publicou trimestres; os meses aqui
+#   são o ÚLTIMO mês de cada trimestre publicado, derivados por nós. Isso está
+#   marcado por linha em vez de escondido, porque muda o que a defasagem medida
+#   significa para aquela recessão.
+#
+recessao_id,pico,vale,granularidade,fonte,observacao
+1980-1983,1980-11,1983-02,mensal,png-mensal,
+1987-1988,1987-03,1988-10,mensal,png-mensal,
+1989-1991,1989-07,1991-12,mensal,png-mensal,
+1995,1995-01,1995-09,mensal,png-mensal,
+1997-1999,1997-11,1999-02,mensal,png-mensal,
+2001,2001-01,2001-09,mensal,png-mensal,
+2002-2003,2002-11,2003-06,mensal,png-mensal,
+2008-2008,2008-08,2008-12,mensal,png-mensal,A datação mensal põe o vale em dez/2008; a trimestral [pdf-2017] põe no 1º tri de 2009. Divergência da própria fonte.
+2014-2016,2014-03,2016-12,mensal,png-mensal,Fecha exatamente com a datação trimestral do [pdf-2017]: 33 meses nas duas.
+2019-2020,2019-12,2020-06,trimestral,pdf-2023,"Publicado só em trimestres: pico no 4º tri de 2019, vale no 2º tri de 2020. Não há datação mensal da recessão da covid."

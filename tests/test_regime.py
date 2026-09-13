@@ -73,53 +73,82 @@ def test_sem_corte_nao_ha_classificacao():
 
 # ------------------------------------------------------------ persistência
 
-def quadrantes(sequencia):
-    return pd.Series(sequencia, index=idx(len(sequencia)), dtype="object")
+def sinal(sequencia):
+    return pd.Series(sequencia, index=idx(len(sequencia)))
 
 
 def test_troca_so_confirma_apos_a_persistencia():
-    bruto = quadrantes(["Expansão"] * 4 + ["Estagflação"] * 4)
-    resultado = regime.aplicar_persistencia(bruto, meses=3)
+    g = sinal([True] * 4 + [False] * 4)
+    i = sinal([False] * 8)
+    resultado = regime.aplicar_persistencia(g, i, meses=3)
 
     # Os dois primeiros meses do novo sinal ainda não valem.
     assert list(resultado["quadrante"])[:6] == ["Expansão"] * 6
-    assert list(resultado["quadrante"])[6:] == ["Estagflação"] * 2
+    assert list(resultado["quadrante"])[6:] == ["Desaceleração"] * 2
 
 
 def test_oscilacao_curta_nao_troca_o_regime():
     """O caso que motivou a regra: um terço dos episódios durava 2 meses ou menos."""
-    bruto = quadrantes(["Expansão"] * 4 + ["Estagflação"] * 2 + ["Expansão"] * 4)
-    resultado = regime.aplicar_persistencia(bruto, meses=3)
+    g = sinal([True] * 4 + [False] * 2 + [True] * 4)
+    i = sinal([False] * 10)
+    resultado = regime.aplicar_persistencia(g, i, meses=3)
     assert set(resultado["quadrante"]) == {"Expansão"}
 
 
 def test_estado_pendente_fica_visivel():
     """O painel mostra 'mudou mas não confirmou' em vez de esconder."""
-    bruto = quadrantes(["Expansão"] * 3 + ["Estagflação"] * 2)
-    resultado = regime.aplicar_persistencia(bruto, meses=3)
-    assert list(resultado["pendente"])[-2:] == ["Estagflação", "Estagflação"]
+    g = sinal([True] * 3 + [False] * 2)
+    i = sinal([False] * 5)
+    resultado = regime.aplicar_persistencia(g, i, meses=3)
+    assert list(resultado["pendente"])[-2:] == ["Desaceleração", "Desaceleração"]
     assert list(resultado["meses_pendente"])[-2:] == [1, 2]
 
 
-def test_candidato_que_muda_reinicia_a_contagem():
-    bruto = quadrantes(["Expansão"] * 3 + ["Estagflação", "Aquecimento", "Estagflação"])
-    resultado = regime.aplicar_persistencia(bruto, meses=3)
-    assert set(resultado["quadrante"]) == {"Expansão"}
-    assert list(resultado["meses_pendente"])[-3:] == [1, 1, 1]
+def test_ruido_no_outro_eixo_nao_trava_a_virada():
+    """Regressão da versão que contava meses do quadrante inteiro.
+
+    O crescimento vira e fica firme, mas a inflação oscila todo mês. Com a
+    contagem sobre o rótulo de quatro estados, o candidato mudava de nome a cada
+    mês ("Expansão", "Aquecimento", "Expansão"...), o contador zerava e a virada
+    do crescimento nunca confirmava — na série real isso produziu um episódio de
+    contração de 116 meses. Com a contagem por eixo, o crescimento confirma no
+    terceiro mês, independentemente do que a inflação faça.
+    """
+    g = sinal([False] * 3 + [True] * 6)
+    i = sinal([True, False] * 4 + [True])
+    resultado = regime.aplicar_persistencia(g, i, meses=3)
+
+    vigentes = list(resultado["quadrante"])
+    assert all(q in ("Desaceleração", "Estagflação") for q in vigentes[:5])
+    assert all(q in ("Expansão", "Aquecimento") for q in vigentes[5:])
 
 
 def test_primeiro_quadrante_vale_de_imediato():
-    resultado = regime.aplicar_persistencia(quadrantes(["Expansão"]), meses=3)
+    resultado = regime.aplicar_persistencia(sinal([True]), sinal([False]), meses=3)
     assert resultado["quadrante"].iloc[0] == "Expansão"
 
 
 def test_persistencia_reduz_o_numero_de_trocas():
-    alternado = quadrantes(["Expansão", "Estagflação"] * 20)
-    com = regime.aplicar_persistencia(alternado, meses=3)["quadrante"]
+    g = sinal([True, False] * 20)
+    i = sinal([False] * 40)
+    com = regime.aplicar_persistencia(g, i, meses=3)["quadrante"]
     trocas_com = int((com != com.shift()).sum() - 1)
-    trocas_sem = int((alternado != alternado.shift()).sum() - 1)
-    assert trocas_com < trocas_sem
     assert trocas_com == 0
+
+
+def test_sinais_leem_o_corte_escolhido():
+    """O corte alternativo existe para a validação medir, e precisa ser de fato outro."""
+    reg = pd.DataFrame({
+        "data_referencia": [d.date() for d in idx(3)],
+        "eixo_crescimento": [1.0, 1.0, 1.0],
+        "eixo_inflacao": [0.0, 0.0, 0.0],
+        "corte_crescimento": [2.0, 2.0, 2.0],
+        "corte_inflacao": [1.0, 1.0, 1.0],
+    })
+    assert not regime.sinais(reg, corte_crescimento="mediana")[0].any()
+    assert regime.sinais(reg, corte_crescimento="zero")[0].all()
+    with pytest.raises(ValueError):
+        regime.sinais(reg, corte_crescimento="meta")
 
 
 # ------------------------------------------------------------- camada toda

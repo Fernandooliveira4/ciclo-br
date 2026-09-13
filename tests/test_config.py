@@ -108,3 +108,38 @@ def test_o_codespace_roda_a_mesma_versao_de_python_que_a_ci():
             assert versao == do_codespace, (
                 f"{fluxo.name} roda em {versao} e o Codespace em {do_codespace}"
             )
+
+
+def test_nenhum_workflow_instala_dependencia_por_faixa():
+    """Instalar por faixa num job com `contents: write` e supply chain aberta.
+
+    O job de ingestao da push de volta no repositorio. Com `pip install -e .`,
+    uma versao nova de qualquer dependencia -- direta ou transitiva -- passa a
+    executar dentro de um job que segura um token com permissao de escrita, sem
+    ninguem ter decidido atualizar nada.
+
+    O mesmo comando garante o outro lado: instalando das versoes fixas que o
+    Streamlit Cloud le, "CI verde" volta a dizer algo sobre o app publicado.
+    """
+    import re
+    from pathlib import Path
+
+    raiz = Path(config.__file__).resolve().parents[2]
+    fluxos = sorted((raiz / ".github" / "workflows").glob("*.yml"))
+    assert fluxos, "nenhum workflow encontrado"
+
+    for fluxo in fluxos:
+        texto = fluxo.read_text(encoding="utf-8")
+        for linha in texto.splitlines():
+            if "pip install" not in linha:
+                continue
+            # `-e .` sozinho resolve as faixas do pyproject; com `--no-deps`,
+            # instala so os entry points e nao decide versao de nada.
+            assert not re.search(r"pip install\s+-e\s+[\"']?\.", linha) or \
+                "--no-deps" in linha, (
+                f"{fluxo.name}: instala por faixa do pyproject -> {linha.strip()}"
+            )
+        if "pip install" in texto:
+            assert "requirements-ci.txt" in texto, (
+                f"{fluxo.name}: instala sem passar pelas versoes fixas"
+            )

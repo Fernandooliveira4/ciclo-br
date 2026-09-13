@@ -1,0 +1,36 @@
+# O que os workflows instalam, com versão fixa.
+#
+# Este arquivo existe por dois motivos, e o segundo pesa mais que o primeiro.
+#
+# 1. Superfície de ataque. O job de ingestão roda com `contents: write` e dá
+#    push de volta no repositório. Instalando por faixa (`pandas>=2.2`), uma
+#    versão nova de qualquer dependência — direta ou transitiva — passa a
+#    executar dentro de um job que segura um token com permissão de escrita,
+#    sem ninguém ter decidido atualizar nada.
+#
+# 2. A CI precisa testar o que o site roda. O `requirements.txt` é o arquivo
+#    que o Streamlit Cloud instala. Enquanto a CI resolvia as faixas do
+#    `pyproject` e o Cloud lia o `requirements.txt`, os dois rodavam versões
+#    diferentes e "CI verde" não dizia nada sobre o app publicado. Instalando
+#    daqui, passa a dizer.
+#
+# Consequência prática: subir uma versão é um commit, e passa pelos oito
+# portões antes de chegar ao site.
+
+-r requirements.txt
+
+# Ferramentas de verificação. Fixadas pelo mesmo motivo que o resto: uma
+# versão nova do ruff com regra nova reprovaria a CI num commit que não
+# encostou no código.
+pytest==9.1.1
+ruff==0.16.7
+
+# O SDK da Anthropic **não** está aqui de propósito. `llm.disponivel()` checa a
+# chave antes de importar o pacote e devolve False se faltar qualquer um dos
+# dois, então, sem `ANTHROPIC_API_KEY` cadastrada, o import nunca acontece e o
+# briefing sai pelo gerador determinístico — com o rodapé dizendo que saiu.
+# Instalar o SDK seria acrescentar dependência a um job privilegiado para um
+# caminho de código que não executa.
+#
+# Se um dia a chave for cadastrada: acrescente `anthropic==<versão>` aqui. Sem
+# essa linha o caminho do modelo continua desligado, silenciosamente.

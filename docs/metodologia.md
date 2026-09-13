@@ -841,3 +841,7 @@ sido publicado naquela data.
 | 2026-09-13 | Quadrantes desenhados como área tingida, e nome recuado pelo próprio lado | com o recuo medido no eixo inteiro, "Aquecimento" ficava a cinco pixels da linha do zero (seção 8.3) |
 | 2026-09-13 | Os quatro nomes explicados em frase corrente logo abaixo do título | o título da página é uma das quatro palavras: o leitor topa com o termo antes de poder procurá-lo (seção 8.5) |
 | 2026-09-13 | Texto do mapa abre pela figura; justificativa metodológica vira rodapé | ordenar por audiência, não por ordem de descoberta de quem escreveu — sem tirar ressalva nenhuma da tela (seção 8.5) |
+| 2026-09-13 | Workflows instalam de `requirements-ci.txt`, nunca das faixas do `pyproject` | o job de ingestão tem `contents: write`: instalar por faixa põe versão nova de dependência dentro de um job com token de escrita |
+| 2026-09-13 | As versões fixas da CI são as mesmas que o Streamlit Cloud instala | enquanto a CI resolvia faixas e o Cloud lia `requirements.txt`, "CI verde" não dizia nada sobre o app publicado |
+| 2026-09-13 | SDK da Anthropic não é instalado enquanto não houver chave | dependência num job privilegiado para um caminho de código que `disponivel()` nunca alcança |
+| 2026-09-13 | `pilula()` escapa o nome antes de montar HTML | a garantia de que o valor é um de quatro literais mora no classificador, e quem escreve o HTML não tem como verificá-la |

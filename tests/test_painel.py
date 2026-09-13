@@ -398,3 +398,23 @@ def test_o_nome_do_quadrante_fica_dentro_do_proprio_quadrante():
                 f"{nome['quadrante']} desenhado fora do seu quadrante "
                 f"com o eixo em {limite_y}"
             )
+
+
+def test_a_pilula_escapa_html():
+    """A unica funcao do painel que escreve HTML nao pode confiar no que recebe.
+
+    Hoje o nome so pode ser um dos quatro literais de `regime.QUADRANTES`, entao
+    nao ha nada a explorar. Mas essa garantia mora no classificador, e quem
+    monta o HTML nao tem como verifica-la: "o dado por acaso e restrito" e uma
+    coincidencia, nao uma defesa.
+    """
+    from ciclo_br.painel import componentes
+
+    marcado = componentes.pilula("<script>alert(1)</script>")
+    assert "<script>" not in marcado
+    assert "&lt;script&gt;" in marcado
+
+    # O caminho normal continua intacto: o nome aparece legivel, com a cor certa.
+    normal = componentes.pilula("Expansão")
+    assert ">Expansão<" in normal
+    assert graficos.PALETA["Expansão"] in normal

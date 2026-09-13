@@ -204,8 +204,11 @@ python -m venv .venv && .venv/Scripts/activate
 ```
 
 ```bash
-pip install -e ".[dev,painel]"
+pip install -r requirements-ci.txt && pip install -e . --no-deps
 ```
+
+As mesmas versões que a CI e o site rodam — `requirements-ci.txt` fixa
+tudo e explica por quê.
 
 Pipeline:
 

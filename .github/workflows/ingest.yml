@@ -41,9 +41,17 @@ jobs:
           cache: pip
 
       - name: Instalar
-        # O extra `llm` traz o SDK da Anthropic. Sem ele — ou sem a chave — o
-        # briefing sai pelo gerador determinístico e o rodapé diz que saiu.
-        run: pip install -e ".[llm]"
+        # Versões fixas, e não faixas do `pyproject`. Este job roda com
+        # `contents: write` e dá push de volta: instalar por faixa faria uma
+        # versão nova de qualquer dependência executar dentro de um job que
+        # segura um token com permissão de escrita, sem decisão de ninguém.
+        #
+        # O SDK da Anthropic não entra: sem a chave, `llm.disponivel()` devolve
+        # False antes de importá-lo e o briefing sai pelo gerador determinístico,
+        # com o rodapé dizendo que saiu. Ver requirements-ci.txt.
+        run: |
+          pip install -r requirements-ci.txt
+          pip install -e . --no-deps
 
       - name: Coletar séries
         run: |

@@ -1,5 +1,12 @@
+# As versoes que o app publicado roda. O Streamlit Cloud instala deste arquivo,
+# por deteccao automatica, e por isso ele e a referencia: os workflows instalam
+# dele tambem (via requirements-ci.txt) para que a CI teste o que o site roda.
+#
+# Ate 2026-09-13 este comentario afirmava que o GitHub Actions usava este
+# arquivo, e nao usava: os workflows resolviam as faixas do pyproject. Estavam
+# rodando versoes diferentes das do site.
+#
 # Versoes verificadas em 2026-09-12 com Python 3.12.10.
-# Usadas pelo GitHub Actions e pelo Streamlit Cloud para reprodutibilidade.
 requests==2.34.2
 tenacity==9.1.4
 PyYAML==6.0.3

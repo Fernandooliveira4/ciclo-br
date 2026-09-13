@@ -19,7 +19,12 @@ jobs:
           cache: pip
 
       - name: Instalar
-        run: pip install -e ".[dev]"
+        # Das versões fixas, e não das faixas do `pyproject`: assim a CI testa
+        # exatamente o que o Streamlit Cloud instala. O motivo está inteiro em
+        # requirements-ci.txt.
+        run: |
+          pip install -r requirements-ci.txt
+          pip install -e . --no-deps
 
       - name: Lint
         run: ruff check .

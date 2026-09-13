@@ -10,6 +10,7 @@ pipeline.
 from __future__ import annotations
 
 import functools
+import html
 from collections.abc import Callable
 
 import streamlit as st
@@ -40,13 +41,24 @@ def protegido(pagina: Callable[[], None]) -> Callable[[], None]:
 
 
 def pilula(quadrante: str | None) -> str:
-    """O nome do quadrante com a cor que ele tem nos gráficos."""
+    """O nome do quadrante com a cor que ele tem nos gráficos.
+
+    O nome é escapado antes de virar HTML. Hoje ele só pode ser um dos quatro
+    literais de `regime.QUADRANTES`, então não há nada a explorar — mas essa
+    garantia mora no classificador, e quem escreve HTML aqui não tem como
+    verificá-la. "O dado por acaso é restrito" não é uma defesa; é uma
+    coincidência que dura até alguém passar outra coisa para esta função.
+
+    A cor vem de `PALETA.get`, que devolve um literal nosso ou o padrão: ela
+    nunca carrega texto de fora, e por isso não precisa do mesmo cuidado.
+    """
     if not quadrante:
         return "—"
     cor = PALETA.get(quadrante, "#6b7280")
     return (
         f'<span style="background:{cor};color:#fff;padding:2px 10px;'
-        f'border-radius:999px;font-weight:600;white-space:nowrap">{quadrante}</span>'
+        f'border-radius:999px;font-weight:600;white-space:nowrap">'
+        f'{html.escape(quadrante)}</span>'
     )
 
 

@@ -53,6 +53,10 @@ jobs:
       - name: Atualizar calendário de divulgações
         run: ciclo-calendario
 
+      # O cálculo é determinístico, então só grava quando o dado bruto mudou.
+      - name: Recalcular camada derivada
+        run: ciclo-transformar
+
       - name: Portões de qualidade
         run: ciclo-qualidade
 

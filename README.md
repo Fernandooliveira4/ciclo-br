@@ -10,8 +10,8 @@ contra o consenso do Focus, e publica um briefing — mas só quando há dado no
 ![CI](https://github.com/Fernandooliveira4/ciclo-br/actions/workflows/ci.yml/badge.svg)
 ![Ingestão](https://github.com/Fernandooliveira4/ciclo-br/actions/workflows/ingest.yml/badge.svg)
 
-> **Status:** em construção. Semanas 1 e 2 de 8 concluídas — ingestão, armazenamento,
-> expectativas do Focus, calendário e agendamento automático.
+> **Status:** em construção. Semanas 1 a 3 de 8 concluídas — ingestão, armazenamento,
+> expectativas do Focus, agendamento automático e os dois eixos do classificador.
 > O roteiro completo está em [Roadmap](#roadmap).
 
 ---
@@ -101,6 +101,7 @@ ciclo-ingest                     # incremental: o modo do agendamento diário
 ciclo-ingest --fonte focus       # só as expectativas
 ciclo-ingest --serie ipca        # uma série só
 ciclo-calendario                 # próximas divulgações do IBGE
+ciclo-transformar                # recalcula eixos (ajuste sazonal + momentum)
 ciclo-qualidade                  # portões de qualidade (código 1 reprova)
 pytest                           # suíte de testes
 ```
@@ -144,7 +145,7 @@ Estão detalhadas em [docs/metodologia.md](docs/metodologia.md). As principais:
 |---|---|---|
 | 1 | Fichas das séries, cliente SGS, armazenamento append-only, backfill | ✅ concluída |
 | 2 | Cliente Focus, calendário IBGE, GitHub Actions em cron, portões de qualidade | ✅ concluída |
-| 3 | Ajuste sazonal recursivo, momentum, auditoria da quebra dos núcleos | parcial: [auditoria feita](docs/metodologia.md#3-auditoria-da-quebra-metodológica-dos-núcleos-dez2025) |
+| 3 | Ajuste sazonal recursivo, momentum, auditoria da quebra dos núcleos | ✅ concluída |
 | 4 | Classificador de quadrante | — |
 | 5 | Transcrição do CODACE e medição de defasagem | — |
 | 6 | Surpresas realizado × Focus | — |

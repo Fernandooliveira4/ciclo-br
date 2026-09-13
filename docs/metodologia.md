@@ -93,6 +93,53 @@ lado das *expectativas*, via API do Focus, que é point-in-time por construção
 
 ---
 
+## 4b. Camada derivada: ajuste sazonal recursivo e momentum
+
+**Ajuste sazonal em janela expansiva.** Para obter o valor dessazonalizado de um
+mês, o decompositor é reestimado usando **apenas os dados até aquele mês**. Isso
+é verificado por teste: o valor dessazonalizado de um período tem que ser idêntico
+quer a série termine ali, quer ela continue por mais dois anos. Se mudasse, o
+passado estaria sendo reescrito com informação que não existia, e o backtest
+viraria ficção.
+
+Só duas séries são dessazonalizadas por nós — **taxa de desocupação** e **núcleo
+do IPCA** — porque IBC-Br e produção industrial já vêm ajustados da fonte. O
+ajuste move o núcleo em 0,08 p.p. na média.
+
+**STL, não X-13ARIMA-SEATS.** O X-13 é o padrão de órgão estatístico, mas depende
+de um binário do Census Bureau que não existe no runner do GitHub Actions nem no
+Streamlit Cloud. O STL é Python puro e roda em qualquer lugar. O custo é
+conhecido e aceito: o STL não trata efeito de calendário nem de dias úteis — o
+que pesa pouco nas duas séries em questão, e pesaria muito na produção industrial,
+que por sorte já vem ajustada da fonte.
+
+**As duas transformações.**
+
+| Eixo | Entrada | Transformação |
+|---|---|---|
+| Crescimento | IBC-Br dessazonalizado (nível) | média de 3 meses sobre os 3 anteriores, anualizada |
+| Inflação | núcleo dessazonalizado (taxa % a.m.) | 3 meses **compostos** e anualizados |
+
+A composição é multiplicativa, não média aritmética: 1% ao mês por três meses não
+é 3% no trimestre, e para inflação essa diferença não é detalhe de arredondamento.
+
+**Aderência a episódios conhecidos** (verificação feita em 12/09/2026):
+
+| Episódio | Eixo de crescimento |
+|---|---|
+| Recessão de 2014-16 | 18 de 18 meses negativos, mínimo −10,1 |
+| COVID (2020) | mínimo −38,2 e máximo +40,3 — o tombo e o repique |
+| Crise de 2008-09 | 6 de 10 meses negativos, mínimo −20,5 |
+| Choque de 2021-22 | eixo de inflação em 8,2% anualizado na média, pico de 13,4 |
+
+**Limitação assumida.** O momentum 3m/3m sobre série mensal é volátil por
+construção — em 2020 ele varia de −38 a +40. Isso é fidelidade ao dado, não
+defeito, mas significa que uma regra de sinal aplicada cru produziria troca de
+quadrante a cada oscilação em torno de zero. O tratamento disso é decisão da
+camada de classificação, não desta.
+
+---
+
 ## 5. Medida de surpresa
 
 **Definição.** Surpresa = valor realizado − mediana do Focus vigente na véspera da

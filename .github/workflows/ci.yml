@@ -32,3 +32,8 @@ jobs:
       # um pipeline que quebra alto vale mais que um que grava lixo em silêncio.
       - name: Portões de qualidade dos dados
         run: ciclo-qualidade
+
+      # Pega o caso de alguém versionar dado bruto sem recalcular os eixos:
+      # o dashboard estaria mostrando número derivado de uma versão antiga.
+      - name: Camada derivada em dia com o dado bruto
+        run: ciclo-transformar --verificar

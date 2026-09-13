@@ -151,6 +151,37 @@ def test_salvar_e_idempotente():
     assert transformacao.salvar(transformacao.construir()) is False
 
 
+def test_ruido_de_ponto_flutuante_nao_conta_como_alteracao():
+    """O STL depende do BLAS, então Linux e Windows divergem nos últimos bits.
+
+    Sem tolerância, a CI reprovaria a camada derivada só por ter sido calculada
+    noutro sistema operacional — foi assim que este caso apareceu.
+    """
+    _gravar("ibcbr_sa", serie_sazonal(120, tendencia=0.1))
+    derivado = transformacao.construir()
+
+    outra_plataforma = derivado.copy()
+    outra_plataforma["valor"] = outra_plataforma["valor"] + 1e-9
+
+    assert transformacao.equivalente(derivado, outra_plataforma)
+
+
+def test_diferenca_com_significado_conta_como_alteracao():
+    _gravar("ibcbr_sa", serie_sazonal(120, tendencia=0.1))
+    derivado = transformacao.construir()
+
+    desatualizada = derivado.copy()
+    desatualizada.loc[0, "valor"] = float(desatualizada.loc[0, "valor"]) + 0.01
+
+    assert not transformacao.equivalente(derivado, desatualizada)
+
+
+def test_tamanhos_diferentes_nao_sao_equivalentes():
+    _gravar("ibcbr_sa", serie_sazonal(120, tendencia=0.1))
+    derivado = transformacao.construir()
+    assert not transformacao.equivalente(derivado, derivado.iloc[:-1])
+
+
 def test_carregar_sem_arquivo_devolve_colunas_esperadas():
     vazio = transformacao.carregar()
     assert vazio.empty

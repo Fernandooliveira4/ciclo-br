@@ -50,6 +50,15 @@ PERIODO_SAZONAL = 12
 # de ruído, e o valor dessazonalizado diz mais sobre o estimador que sobre a economia.
 MINIMO_OBSERVACOES = 36
 
+# O STL usa LOESS, que passa por BLAS/LAPACK, e o backend numérico difere entre
+# plataformas: a mesma entrada produz valores que divergem nos últimos bits no
+# Linux e no Windows. Portanto a camada derivada é reprodutível a menos de ruído
+# de ponto flutuante, não bit a bit. Comparações usam esta tolerância — muito
+# abaixo de qualquer diferença com significado econômico, já que os valores são
+# percentuais. Sem isso a CI reprovaria só por ter rodado noutro sistema.
+TOLERANCIA = 1e-6
+CASAS_DECIMAIS = 6
+
 
 def dessazonalizar_recursivo(
     serie: pd.Series,
@@ -178,24 +187,42 @@ def construir() -> pd.DataFrame:
         return pd.DataFrame(columns=["serie_id", "data_referencia", "valor", "calculado_em"])
 
     derivado = pd.concat(partes, ignore_index=True)
+    derivado["valor"] = derivado["valor"].round(CASAS_DECIMAIS)
     derivado["calculado_em"] = dt.datetime.now(dt.UTC)
     return derivado
+
+
+def equivalente(a: pd.DataFrame, b: pd.DataFrame) -> bool:
+    """Compara duas versões da camada derivada a menos de ruído numérico.
+
+    Chaves têm que bater exatamente; valores, dentro da tolerância. É isso que
+    permite a mesma camada ser considerada íntegra tendo sido calculada em
+    sistemas operacionais diferentes.
+    """
+    if a.empty or b.empty or len(a) != len(b):
+        return False
+    chaves = ["serie_id", "data_referencia"]
+    if not a[chaves].reset_index(drop=True).equals(b[chaves].reset_index(drop=True)):
+        return False
+    return bool(np.allclose(
+        a["valor"].to_numpy(dtype="float64"),
+        b["valor"].to_numpy(dtype="float64"),
+        atol=TOLERANCIA, rtol=0, equal_nan=True,
+    ))
 
 
 def salvar(derivado: pd.DataFrame) -> bool:
     """Grava a camada derivada; devolve se os valores mudaram de fato.
 
     Como o cálculo é determinístico, o arquivo só muda quando o dado bruto mudou.
-    Ignorar `calculado_em` na comparação evita commit diário sem informação.
+    Ignorar `calculado_em` e o ruído de ponto flutuante evita commit diário sem
+    informação — inclusive quando a execução anterior rodou noutra plataforma.
     """
     DIR_DERIVADO.mkdir(parents=True, exist_ok=True)
-    colunas = ["serie_id", "data_referencia", "valor"]
 
-    if CAMINHO_DERIVADO.exists():
-        anterior = pd.read_parquet(CAMINHO_DERIVADO)
-        if anterior[colunas].equals(derivado[colunas]):
-            log.info("camada derivada sem alteração — arquivo mantido")
-            return False
+    if CAMINHO_DERIVADO.exists() and equivalente(pd.read_parquet(CAMINHO_DERIVADO), derivado):
+        log.info("camada derivada sem alteração — arquivo mantido")
+        return False
 
     derivado.to_parquet(CAMINHO_DERIVADO, index=False, compression="zstd")
     return True
@@ -225,9 +252,7 @@ def main(argv: list[str] | None = None) -> int:
     derivado = construir()
 
     if args.verificar:
-        colunas = ["serie_id", "data_referencia", "valor"]
-        atual = carregar()
-        if atual.empty or not atual[colunas].equals(derivado[colunas]):
+        if not equivalente(carregar(), derivado):
             log.error("camada derivada desatualizada: rode `ciclo-transformar` "
                       "e versione data/derivado/series.parquet")
             return 1

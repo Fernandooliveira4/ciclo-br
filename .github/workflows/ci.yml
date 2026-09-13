@@ -45,3 +45,8 @@ jobs:
       # antecipa ou atrasa em relação à datação oficial de recessões.
       - name: Defasagem contra o CODACE em dia
         run: ciclo-validar --verificar
+
+      # Pega o caso de alguem versionar dado bruto sem remedir a surpresa: o
+      # briefing citaria consenso de uma divulgacao que ja passou.
+      - name: Surpresas em dia com o realizado e com o Focus
+        run: ciclo-surpresa --verificar

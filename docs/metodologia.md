@@ -138,6 +138,21 @@ defeito, mas significa que uma regra de sinal aplicada cru produziria troca de
 quadrante a cada oscilação em torno de zero. O tratamento disso é decisão da
 camada de classificação, não desta.
 
+**Reprodutibilidade é numérica, não bit a bit.** O STL usa LOESS, que passa por
+BLAS/LAPACK, e o backend numérico difere entre plataformas: a mesma entrada
+produz valores que divergem nos últimos bits no Linux e no Windows. A CI compara
+a camada derivada com tolerância, não por igualdade — sem isso o build reprovaria
+só por ter rodado em outro sistema.
+
+A tolerância precisa ser **maior que a granularidade da gravação**, e isso já
+custou um falso negativo. Com os dois em 1e-6, um valor recalculado que se mexia
+meio dígito na última casa mudava de arredondamento, a diferença gravada dava
+exatamente 1e-6, e a comparação reprovava na fronteira — e a mediana expansiva do
+classificador amplificava esse meio dígito até reprovar a camada de regime
+inteira. Gravação em 6 casas, tolerância em 1e-5: uma ordem de grandeza de folga,
+e ainda quatro ordens abaixo de qualquer diferença com significado econômico. Há
+teste que trava a relação entre as duas constantes.
+
 ---
 
 ## 4c. Classificador de regime
@@ -248,34 +263,105 @@ e depois crescimento com inflação alta até o fim de 2022.
 ## 5. Medida de surpresa
 
 **Definição.** Surpresa = valor realizado − mediana do Focus vigente na véspera da
-divulgação. A unidade é a mesma do indicador (p.p. para inflação), o que torna a
-medida interpretável sem normalização.
+divulgação. A unidade é a mesma do indicador (p.p.), o que torna a medida
+interpretável sem normalização.
 
 **Por que surpresa e não outlier estatístico.** Um detector de outlier responde
 "esse número é raro" — e o IPCA de janeiro é sempre alto, então ele gritaria todo
 janeiro. A pergunta que uma mesa faz é outra: o número foi diferente do que o
 mercado esperava? Só a segunda tem conteúdo econômico.
 
-**Como o consenso da véspera é reconstruído.** A API de Expectativas do Banco
-Central é point-in-time por construção: cada linha traz `Data` (a data da
-apuração, diária) e `DataReferencia` (o período projetado). O consenso relevante é
-a última mediana apurada **antes** da data de divulgação. O armazenamento
-append-only guarda essa trajetória sem sobrescrever nada, e a consulta é um
-`ORDER BY data_coleta DESC LIMIT 1` com corte na data do release.
+### 5.1 As três peças
 
-**Decisões de apuração.**
+1. **O consenso é point-in-time por construção.** Cada linha da API de
+   Expectativas traz `Data` (a apuração, diária) e `DataReferencia` (o período
+   projetado). O armazenamento append-only guarda a trajetória inteira sem
+   sobrescrever nada.
+2. **A data de divulgação vem do calendário do IBGE**, que devolve o período de
+   referência de cada evento. Sem ela não existe "véspera".
+3. **O realizado carrega a data em que foi coletado**, o que permite distinguir
+   primeira leitura de valor já revisado.
 
-- `baseCalculo` fixado em **0** e nunca misturado com 1. São janelas de apuração
+**A janela começa em 2017, e quem manda é o calendário.** A API de calendário do
+IBGE responde vazio antes de 2017 — verificado produto a produto em 12/09/2026.
+Estimar a data de divulgação a partir do mês de referência daria mais cobertura e
+seria pior: o ganho viria de um número inventado.
+
+### 5.2 Os pares
+
+Só entram pares em que as duas pontas medem a mesma coisa na mesma unidade.
+
+| Par | Realizado | Consenso | Divulgações medidas | Desde |
+|---|---|---|---|---|
+| IPCA | `ipca`, % ao mês | Focus IPCA mensal | 117 | jan/2017 |
+| Desocupação | `desocupacao`, % da força de trabalho | Focus desocupação mensal | 60 | out/2021 |
+| PIB | `pib_yoy`, % interanual | Focus PIB trimestral | 39 | mar/2017 |
+
+**O câmbio ficou de fora de propósito.** A PTAX é preço de mercado contínuo, não
+tem data de divulgação, e "surpresa" ali não seria surpresa de divulgação.
+
+**O PIB exigiu amarrar a definição antes de parear.** A expectativa de "PIB Total"
+do Focus é interanual — visível nos valores: −10,54% para o 2º tri de 2020 e
++12,76% para o 2º tri de 2021. Do lado do realizado, o BCB não publica o nome das
+séries do SGS por API, então a definição da série 22099 foi estabelecida por
+conferência e não por leitura de rótulo. A variação interanual calculada a partir
+dela reproduz o número cheio do IBGE nos dois trimestres mais distintivos da
+amostra (2T2020: −10,1%; 2T2021: +12,4%) e é a que mais se aproxima da mediana do
+Focus ao longo de 94 trimestres — desvio padrão 0,62 p.p., contra 0,70 da série
+22109 e 1,62 da 22110. A conferência está registrada na própria ficha, em
+`config/series.yaml`.
+
+### 5.3 Decisões de apuração
+
+- **`baseCalculo` fixado em 0**, nunca misturado com 1. São janelas de apuração
   diferentes, com números de respondentes diferentes (140 contra 41 numa amostra
   de setembro de 2026); alternar entre elas compararia populações distintas.
-- Guardamos apenas os períodos de referência a até um mês da coleta (seis meses,
-  no trimestral). A API devolve 25 meses de projeção por coleta, mas o projeto só
-  usa o consenso do período prestes a ser divulgado; o resto seriam ~160 mil
-  linhas por indicador que nenhuma parte do sistema consulta.
-- Mediana repetida não gera linha nova: se o consenso não mudou, não houve
-  notícia.
+- **Consenso da véspera é estrito.** Uma apuração feita no próprio dia da
+  divulgação não estava disponível para quem operava antes de o número sair.
+- **Mediana repetida não gera linha nova.** Se o consenso não mudou, não houve
+  notícia. Isso tem uma consequência que a tabela expõe em vez de esconder: a
+  coluna `dias_sem_mudanca` mede há quantos dias o consenso estava parado quando
+  o número saiu — **não** há quantos dias ele estava desatualizado. Média de 6
+  dias no IPCA e 15 na desocupação, que é série que o mercado revisita pouco.
+- **Guardamos apenas os períodos de referência a até um mês da coleta** (seis, no
+  trimestral). A API devolve 25 meses de projeção por coleta, mas o projeto só usa
+  o consenso do período prestes a ser divulgado.
 
-**Cobertura, com a limitação medida.**
+### 5.4 O resultado, e o viés que ele revela
+
+Versionado em [`data/derivado/surpresa.csv`](../data/derivado/surpresa.csv),
+216 divulgações, reverificado na CI.
+
+| Par | n | Surpresa média | Desvio padrão | Dias sem mudança (média) |
+|---|---|---|---|---|
+| IPCA | 117 | **+0,01 p.p.** | 0,10 | 6 |
+| PIB | 39 | **+0,41 p.p.** | 0,49 | 9 |
+| Desocupação | 60 | **−0,17 p.p.** | 0,19 | 15 |
+
+O IPCA é o teste da construção inteira, e ele passa: surpresa média de +0,01 p.p.
+em 117 divulgações é o que se espera de um consenso não enviesado. Se a montagem
+estivesse errada — consenso da referência trocada, data de divulgação deslocada —
+essa média não seria zero.
+
+**Os outros dois não têm média zero, e o motivo mais provável é revisão.** O
+realizado gravado para 2017-2026 é o valor *vigente hoje*, não o primeiro print: o
+backfill trouxe a série já revisada. O IPCA praticamente não é revisado, e sua
+média é zero. O PIB é revisado para cima, e sua média é +0,41 p.p. A ordem dos
+fatos é coerente com a explicação.
+
+Na desocupação as duas explicações competem e os dados **não** decidem entre elas:
+a janela começa no fim de 2021 e é quase toda de desemprego em queda, e projetar
+uma tendência longa sempre fica atrás dela. Revisão da PNADC e conservadorismo do
+consenso produziriam o mesmo sinal. Fica declarado como indeterminado.
+
+**A coluna `primeira_leitura`** marca quais linhas o pipeline observou ao vivo —
+coleta até quatro dias depois da divulgação. Hoje é uma só, a do IPCA de agosto de
+2026. Ela vira verdadeira sozinha conforme o projeto roda, e é o que vai permitir,
+daqui a alguns anos, medir a surpresa contra o primeiro print em vez do valor
+revisado. É o mesmo argumento do banco de vintages da seção 4: o projeto não tem
+como consertar o passado, mas pode parar de estragar o futuro.
+
+### 5.5 Cobertura, com a limitação medida
 
 | Série de expectativa | Coletas desde |
 |---|---|
@@ -288,7 +374,7 @@ A desocupação é a única variável cíclica com consenso mensal — não exis
 para o IBC-Br — e ela só passou a ser pesquisada em 2021. Na prática, o pilar de
 surpresa é forte do lado da inflação e curto do lado da atividade, onde se apoia
 em cinco anos de desocupação mais o PIB trimestral. Isso é limitação de fonte, não
-escolha de desenho, e está declarado aqui em vez de escondido atrás de um gráfico.
+escolha de desenho.
 
 ---
 
@@ -491,3 +577,8 @@ repositório.
 | 2026-09-12 | Cronologia do CODACE transcrita à mão, com a imagem de origem versionada | a fonte não publica formato estruturado; transcrição precisa ser auditável (seção 7.1) |
 | 2026-09-12 | Corte do eixo de crescimento trocado da mediana expansiva para zero | com a mediana o sinal ficava ligado em 81% dos meses; a taxa base tornava a detecção vazia (seção 7.4) |
 | 2026-09-12 | Corte do eixo de inflação mantido na mediana expansiva | não há zero natural para inflação; a alternativa exigiria versionar a série de metas do CMN (seção 7.4) |
+| 2026-09-12 | Calendário do IBGE promovido a fonte das datas de divulgação, com backfill desde 2017 | sem a data em que o número saiu não existe consenso da véspera (seção 5.1) |
+| 2026-09-12 | Janela da surpresa começa em 2017 em vez de estimar datas de divulgação | cobertura maior viria de data inventada (seção 5.1) |
+| 2026-09-12 | PIB entra pela série SGS 22099, com a definição estabelecida por conferência | o BCB não publica nome de série por API; a ficha registra o que foi testado (seção 5.2) |
+| 2026-09-12 | Câmbio fora da medida de surpresa | PTAX é preço contínuo, não tem divulgação com hora marcada (seção 5.2) |
+| 2026-09-12 | Tolerância de comparação uma ordem acima da granularidade de gravação | iguais, o arredondamento criava diferença de exatamente 1e-6 e reprovava a CI (seção 4b) |

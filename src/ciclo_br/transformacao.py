@@ -56,8 +56,16 @@ MINIMO_OBSERVACOES = 36
 # de ponto flutuante, não bit a bit. Comparações usam esta tolerância — muito
 # abaixo de qualquer diferença com significado econômico, já que os valores são
 # percentuais. Sem isso a CI reprovaria só por ter rodado noutro sistema.
-TOLERANCIA = 1e-6
+#
+# A tolerância precisa ser MAIOR que a granularidade da gravação, e isso já
+# custou um falso negativo. Com os dois em 1e-6, um valor recalculado que se
+# mexia meio dígito na última casa mudava de arredondamento, a diferença gravada
+# dava exatamente 1e-6, e a comparação reprovava na fronteira. Pior: a mediana
+# expansiva do classificador amplificava esse meio dígito. Uma ordem de grandeza
+# de folga resolve, e continua quatro ordens abaixo de qualquer diferença com
+# significado econômico. Há teste que trava a relação entre as duas constantes.
 CASAS_DECIMAIS = 6
+TOLERANCIA = 1e-5
 
 
 def dessazonalizar_recursivo(
@@ -117,6 +125,30 @@ def _serie_mensal(serie_id: str) -> pd.Series:
     return serie.asfreq("MS")
 
 
+def variacao_interanual(nivel: pd.Series, *, periodos_por_ano: int) -> pd.Series:
+    """Variação % contra o mesmo período do ano anterior.
+
+    Usada no PIB trimestral porque é assim que o Focus pergunta — a expectativa
+    de "PIB Total" do Focus é interanual, e comparar realizado com consenso exige
+    que os dois falem a mesma língua. Como compara períodos homólogos, dispensa
+    ajuste sazonal.
+    """
+    return (nivel / nivel.shift(periodos_por_ano) - 1) * 100
+
+
+def _serie_trimestral(serie_id: str) -> pd.Series:
+    """Série trimestral vigente, indexada pelo primeiro mês de cada trimestre."""
+    vigente = storage.ler_vigente(serie_id)
+    if vigente.empty:
+        return pd.Series(dtype="float64")
+    serie = pd.Series(
+        list(vigente["valor"]),
+        index=pd.to_datetime(pd.Series(list(vigente["data_referencia"]))),
+        dtype="float64",
+    ).sort_index()
+    return serie.asfreq("QS")
+
+
 # O que a camada derivada produz, e de onde vem. Declarado em um lugar só para
 # que a origem de cada número exibido no dashboard seja rastreável.
 RECEITAS: dict[str, dict] = {
@@ -145,6 +177,13 @@ RECEITAS: dict[str, dict] = {
         "descricao": "Taxa de desocupação dessazonalizada em janela expansiva",
         "unidade": "% da força de trabalho",
     },
+    "pib_yoy": {
+        "origem": "pib",
+        "papel": "surpresa",
+        "descricao": "PIB trimestral, variação % sobre o mesmo trimestre do ano "
+                     "anterior — a forma em que o Focus publica a expectativa",
+        "unidade": "% interanual",
+    },
     "pim_momentum": {
         "origem": "pim_sa",
         "papel": "contexto",
@@ -167,6 +206,7 @@ def construir() -> pd.DataFrame:
         "eixo_inflacao": taxa_mm3m_anualizada(nucleo_sa),
         "desocupacao_sa": desocupacao_sa,
         "pim_momentum": momentum_3m3m(_serie_mensal("pim_sa")),
+        "pib_yoy": variacao_interanual(_serie_trimestral("pib"), periodos_por_ano=4),
     }
 
     partes = []

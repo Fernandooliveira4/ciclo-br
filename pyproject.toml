@@ -27,6 +27,7 @@ ciclo-qualidade = "ciclo_br.qualidade:main"
 ciclo-transformar = "ciclo_br.transformacao:main"
 ciclo-regime = "ciclo_br.regime:main"
 ciclo-validar = "ciclo_br.validacao:main"
+ciclo-surpresa = "ciclo_br.surpresa:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

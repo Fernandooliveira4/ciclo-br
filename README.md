@@ -10,9 +10,9 @@ contra o consenso do Focus, e publica um briefing — mas só quando há dado no
 ![CI](https://github.com/Fernandooliveira4/ciclo-br/actions/workflows/ci.yml/badge.svg)
 ![Ingestão](https://github.com/Fernandooliveira4/ciclo-br/actions/workflows/ingest.yml/badge.svg)
 
-> **Status:** em construção. Semanas 1 a 5 de 8 concluídas — ingestão, armazenamento,
-> expectativas do Focus, agendamento automático, o classificador de regime e a
-> validação contra a datação oficial do CODACE.
+> **Status:** em construção. Semanas 1 a 6 de 8 concluídas — ingestão, armazenamento,
+> expectativas do Focus, agendamento automático, o classificador de regime, a
+> validação contra a datação oficial do CODACE e a medida de surpresa por divulgação.
 > O roteiro completo está em [Roadmap](#roadmap).
 
 ---
@@ -20,7 +20,7 @@ contra o consenso do Focus, e publica um briefing — mas só quando há dado no
 ## Por que este projeto é diferente de um painel de indicadores
 
 A maior parte dos dashboards macro de portfólio empilha gráficos e detecta
-outliers estatísticos. Três decisões afastam este daqui disso:
+outliers estatísticos. Quatro decisões afastam este daqui disso:
 
 **1. A estatística decide, o modelo de linguagem apenas descreve.**
 A classificação de regime e a medida de surpresa são calculadas de forma
@@ -44,7 +44,14 @@ meses e acompanha as recessões com atraso de três a quatro meses. O resultado
 inteiro está em [`data/derivado/validacao_resumo.csv`](data/derivado/validacao_resumo.csv)
 e o raciocínio na [seção 7 da metodologia](docs/metodologia.md).
 
-**3. Nenhum dado é sobrescrito.**
+**3. A surpresa é medida contra o consenso da véspera, não contra a média.**
+Para cada divulgação, o projeto recupera a data em que o número foi ao ar (do
+calendário do IBGE) e a última mediana do Focus apurada antes dela. Em 117
+divulgações do IPCA a surpresa média é **+0,01 p.p.** — que é o teste da montagem
+inteira: consenso não enviesado dá média zero. Nas séries que são revisadas a
+média não é zero, e isso está medido e explicado em vez de escondido.
+
+**4. Nenhum dado é sobrescrito.**
 Não existe base de vintages pública para séries brasileiras. Este projeto
 constrói a sua: cada observação é gravada com a data em que foi coletada, e uma
 revisão retroativa do Banco Central vira uma linha nova em vez de apagar a
@@ -79,14 +86,14 @@ não falar é mais útil que um que parafraseia estabilidade.
 
 ## Dados
 
-15 séries, todas com ficha obrigatória em [`config/series.yaml`](config/series.yaml)
+16 séries, todas com ficha obrigatória em [`config/series.yaml`](config/series.yaml)
 declarando fonte, código, unidade, periodicidade, tratamento sazonal, papel no
 projeto e transformação aplicada. **Nenhuma série entra sem ficha completa** — e
 a regra é verificada por teste, não por disciplina.
 
 | Bloco | Séries |
 |---|---|
-| Atividade | IBC-Br (com e sem ajuste), desocupação PNADC, produção industrial (com e sem ajuste) |
+| Atividade | IBC-Br (com e sem ajuste), desocupação PNADC, produção industrial (com e sem ajuste), PIB trimestral |
 | Inflação | IPCA mensal, IPCA 12m, núcleo por médias aparadas, núcleo versão congelada (auditoria) |
 | Política | Meta Selic, câmbio PTAX |
 | Expectativas | Focus: IPCA, desocupação e câmbio mensais; PIB trimestral |
@@ -113,6 +120,8 @@ ciclo-calendario                 # próximas divulgações do IBGE
 ciclo-transformar                # recalcula eixos (ajuste sazonal + momentum)
 ciclo-regime                     # classifica o quadrante de regime
 ciclo-validar                    # mede a defasagem contra a datação do CODACE
+ciclo-surpresa                   # realizado × consenso do Focus da véspera
+ciclo-calendario --backfill      # datas de divulgação do IBGE desde 2017
 ciclo-qualidade                  # portões de qualidade (código 1 reprova)
 pytest                           # suíte de testes
 ```
@@ -145,6 +154,12 @@ Estão detalhadas em [docs/metodologia.md](docs/metodologia.md). As principais:
   pela **taxa de desocupação** (mensal) e pelo **PIB** (trimestral) — e o Focus só
   passou a pesquisar desocupação em **agosto de 2021**, então essa metade tem cinco
   anos de história, não vinte.
+- A surpresa começa em **2017**, porque o calendário do IBGE não tem datas de
+  divulgação antes disso. Estimar a data daria mais cobertura e menos verdade.
+- A surpresa histórica compara consenso da época com realizado **já revisado**. É
+  visível: o PIB mostra viés de +0,41 p.p., o IPCA (que não é revisado) mostra
+  +0,01. A partir de agora o pipeline observa as divulgações ao vivo, e a coluna
+  `primeira_leitura` marca quais linhas já estão livres desse viés.
 - O CODACE anuncia com anos de atraso — o vale de 2020 só foi datado em janeiro de
   2023. Se o classificador "ganhar" do comitê, isso não é mérito: ele tem a série
   completa e o comitê, na época, não tinha.
@@ -167,7 +182,7 @@ Estão detalhadas em [docs/metodologia.md](docs/metodologia.md). As principais:
 | 3 | Ajuste sazonal recursivo, momentum, auditoria da quebra dos núcleos | ✅ concluída |
 | 4 | Classificador de quadrante | ✅ concluída |
 | 5 | Transcrição do CODACE e medição de defasagem | ✅ concluída |
-| 6 | Surpresas realizado × Focus | — |
+| 6 | Surpresas realizado × Focus | ✅ concluída |
 | 7 | Dashboard Streamlit (5 páginas, com Metodologia) | — |
 | 8 | Briefing com LLM, modo replay para demonstração, publicação | — |
 

@@ -1,5 +1,6 @@
 import datetime as dt
 
+import pandas as pd
 import pytest
 
 from ciclo_br.config import calendario_produtos, catalogo
@@ -96,3 +97,56 @@ def test_falha_do_calendario_nao_derruba_o_pipeline(monkeypatch):
     monkeypatch.setattr(calendario, "_buscar_produto", explode)
     monkeypatch.setattr(calendario, "salvar", lambda df: None)
     assert calendario.main([]) == 0
+
+
+# ------------------------------------------------- histórico e mescla (S6)
+
+def _evento(produto_id, series_ids, referencia, divulgacao):
+    return {
+        "produto_id": produto_id, "produto": "teste", "series_ids": series_ids,
+        "titulo": "teste",
+        "data_divulgacao": dt.date.fromisoformat(divulgacao),
+        "data_referencia": dt.date.fromisoformat(referencia),
+        "coletado_em": dt.datetime.now(dt.UTC),
+    }
+
+
+def test_mesclar_preserva_o_historico_fora_da_janela_coletada():
+    """A rodada diária consulta uma janela curta; o arquivo guarda tudo.
+
+    Sem mesclar, cada execução apagaria as datas de divulgação de 2017 em diante
+    — que são exatamente o que a camada de surpresa consome.
+    """
+    antigo = pd.DataFrame([_evento(1, "ipca", "2017-01-01", "2017-02-08")])
+    novo = pd.DataFrame([_evento(1, "ipca", "2026-08-01", "2026-09-11")])
+
+    junto = calendario.mesclar(antigo, novo)
+    assert len(junto) == 2
+    assert dt.date(2017, 2, 8) in list(junto["data_divulgacao"])
+
+
+def test_mesclar_deixa_a_coleta_nova_vencer_na_mesma_referencia():
+    """O IBGE remarca datas; a informação mais recente é a correta."""
+    antigo = pd.DataFrame([_evento(1, "ipca", "2026-08-01", "2026-09-10")])
+    novo = pd.DataFrame([_evento(1, "ipca", "2026-08-01", "2026-09-11")])
+
+    junto = calendario.mesclar(antigo, novo)
+    assert len(junto) == 1
+    assert junto["data_divulgacao"].iloc[0] == dt.date(2026, 9, 11)
+
+
+def test_divulgacoes_mapeia_referencia_para_data_por_serie():
+    agenda = pd.DataFrame([
+        _evento(1, "ipca,ipca_12m", "2026-07-01", "2026-08-11"),
+        _evento(2, "desocupacao", "2026-07-01", "2026-08-27"),
+    ])
+    datas = calendario.divulgacoes("ipca", agenda)
+    assert datas[dt.date(2026, 7, 1)] == dt.date(2026, 8, 11)
+    assert calendario.divulgacoes("desocupacao", agenda)[dt.date(2026, 7, 1)] \
+        == dt.date(2026, 8, 27)
+
+
+def test_divulgacoes_nao_confunde_serie_com_prefixo():
+    """`ipca` não pode casar com a linha de `ipca_12m` por acaso."""
+    agenda = pd.DataFrame([_evento(1, "ipca_12m", "2026-07-01", "2026-08-11")])
+    assert calendario.divulgacoes("ipca", agenda).empty

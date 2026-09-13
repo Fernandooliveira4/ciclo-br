@@ -65,6 +65,9 @@ jobs:
       - name: Remedir defasagem contra o CODACE
         run: ciclo-validar
 
+      - name: Remedir surpresa das divulgacoes
+        run: ciclo-surpresa
+
       - name: Portões de qualidade
         run: ciclo-qualidade
 

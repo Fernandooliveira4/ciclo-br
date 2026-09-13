@@ -199,3 +199,36 @@ def test_data_referencia_e_date_e_nao_timestamp():
     _gravar("ibcbr_sa", serie_sazonal(120, tendencia=0.1))
     derivado = transformacao.construir()
     assert isinstance(derivado.loc[0, "data_referencia"], dt.date)
+
+
+# ------------------------------------------- variação interanual (PIB, S6)
+
+def test_variacao_interanual_compara_periodos_homologos():
+    """4% ao ano num índice trimestral tem de sair como 4%, não como 1%."""
+    trimestres = pd.date_range("2020-01-01", periods=8, freq="QS")
+    nivel = pd.Series([100.0] * 4 + [104.0] * 4, index=trimestres)
+    yoy = transformacao.variacao_interanual(nivel, periodos_por_ano=4)
+    assert yoy.iloc[:4].isna().all()
+    assert yoy.iloc[4:].round(6).eq(4.0).all()
+
+
+def test_variacao_interanual_ignora_sazonalidade():
+    """É por isso que a ficha do PIB marca ajuste sazonal como não aplicável."""
+    trimestres = pd.date_range("2020-01-01", periods=12, freq="QS")
+    sazonal = [90.0, 100.0, 110.0, 120.0]
+    nivel = pd.Series([v * (1.05**ano) for ano in range(3) for v in sazonal],
+                      index=trimestres)
+    yoy = transformacao.variacao_interanual(nivel, periodos_por_ano=4).dropna()
+    assert yoy.round(6).eq(5.0).all()
+
+
+def test_tolerancia_e_maior_que_a_granularidade_da_gravacao():
+    """Regressão: comparar com tolerância igual ao arredondamento reprova na fronteira.
+
+    Os valores são gravados com `CASAS_DECIMAIS` casas. Um recálculo que mexe meio
+    dígito na última casa muda o arredondamento e produz diferença de exatamente
+    10**-CASAS_DECIMAIS — que com tolerância igual cai fora por ruído de
+    representação. A camada de regime amplificava isso pela mediana expansiva.
+    """
+    granularidade = 10 ** -transformacao.CASAS_DECIMAIS
+    assert transformacao.TOLERANCIA >= 10 * granularidade

@@ -114,6 +114,35 @@ series:
     transformacao: variacao % interanual
 
   # ---------------------------------------------------------------- INFLACAO
+  - id: pib
+    fonte: sgs
+    codigo: 22099
+    nome: PIB trimestral - indice encadeado (media 1995 = 100)
+    bloco: atividade
+    unidade: indice (media 1995 = 100)
+    periodicidade: trimestral
+    ajuste_sazonal: nao_aplicavel
+    inicio: 1996-01
+    frescor_max_dias: 260   # o trimestre Q sai ~65 dias depois de fechar
+    papel: surpresa
+    transformacao: variacao % sobre o mesmo trimestre do ano anterior
+    verificacao: >
+      O BCB nao publica o nome das series do SGS por API, entao a definicao desta
+      foi estabelecida por conferencia, nao por leitura de rotulo. Testados os
+      codigos 22099, 22109 e 22110, todos indices trimestrais de PIB. A variacao
+      interanual calculada a partir de 22099 reproduz o numero cheio do IBGE nos
+      dois trimestres mais distintivos da amostra (2T2020: -10,1%; 2T2021:
+      +12,4%) e e a que mais se aproxima da mediana do Focus ao longo de 94
+      trimestres (desvio padrao 0,62 p.p. contra 0,70 e 1,62 das outras duas).
+      Conferido em 12/09/2026.
+    notas: >
+      Realizado do lado da atividade, pareado com a expectativa de PIB do Focus,
+      que e interanual - foi assim que a definicao ficou amarrada. Ajuste sazonal
+      marcado como nao aplicavel porque a transformacao usada e interanual, que
+      compara trimestres homologos e dispensa dessazonalizacao. Os tres primeiros
+      pontos da serie (1995) sao 100,00 exatos, artefato da base do encadeamento,
+      e por isso a ficha comeca em 1996.
+
   - id: ipca_nucleo_ma_suav
     fonte: sgs
     codigo: 4466
@@ -287,4 +316,4 @@ calendario:
     9256: [ipca, ipca_12m]          # Indice Nacional de Precos ao Consumidor Amplo
     9171: [desocupacao]             # PNAD Continua - divulgacao mensal
     9294: [pim, pim_sa]             # PIM-PF Brasil
-    9300: [ibcbr, ibcbr_sa]         # Contas Nacionais Trimestrais (PIB)
+    9300: [pib]                     # Contas Nacionais Trimestrais (PIB)

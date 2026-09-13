@@ -1,14 +1,20 @@
 """Calendário de divulgações do IBGE (API v3 de calendário).
 
-Papel deliberadamente **auxiliar**. A fonte da verdade sobre "houve divulgação"
-continua sendo o diff da própria série: o calendário não dispara nada, porque
-depender dele criaria um ponto único de falha para o pipeline inteiro. Ele serve
-para duas coisas:
+**Não dispara nada.** A fonte da verdade sobre "houve divulgação" continua sendo
+o diff da própria série: depender do calendário criaria um ponto único de falha
+para o pipeline inteiro. Se o calendário sumir, a ingestão continua funcionando.
 
-  1. o painel "próximas divulgações" do dashboard;
-  2. saber em que dias vale a pena consultar as APIs com mais frequência.
+Mas ele deixou de ser só enfeite de painel. A API devolve, para cada divulgação,
+o **período de referência** do dado divulgado — e isso é o que torna a camada de
+surpresa possível: sem a data em que o número saiu, não há como saber qual era o
+consenso do Focus na véspera. A cobertura histórica começa em **2017**; antes
+disso a API devolve vazio, e é esse o motivo de a série de surpresa começar lá.
 
-Se o calendário sumir, o pipeline continua funcionando e só perde a antecipação.
+Três usos, então:
+
+  1. a data de divulgação de cada referência, que a camada de surpresa consome;
+  2. o painel "próximas divulgações" do dashboard;
+  3. saber em que dias vale a pena consultar as APIs com mais frequência.
 
 O calendário do Banco Central também existe, mas é endpoint interno do site, não
 documentado e sem contrato público — fica de fora por isso.
@@ -35,6 +41,11 @@ log = logging.getLogger(__name__)
 BASE = "https://servicodados.ibge.gov.br/api/v3/calendario/"
 TEMPO_LIMITE = 60
 CAMINHO = DIR_DADOS / "calendario.parquet"
+
+# Antes de 2017 a API responde com lista vazia para todos os produtos usados
+# aqui. Verificado produto a produto em 12/09/2026; é o limite da fonte, não uma
+# escolha nossa.
+INICIO_COBERTURA = dt.date(2017, 1, 1)
 
 
 class ErroCalendario(RuntimeError):
@@ -117,28 +128,80 @@ def buscar(
     return df.reset_index(drop=True)
 
 
+def _chave(linha) -> tuple:
+    """Uma divulgação por produto e período de referência.
+
+    Quando o item vem sem referência (acontece em alguns avisos), a própria data
+    de divulgação faz o papel de chave, para não colapsar eventos distintos.
+    """
+    referencia = linha["data_referencia"]
+    if pd.isna(referencia) or referencia is None:
+        return (linha["produto_id"], None, linha["data_divulgacao"])
+    return (linha["produto_id"], referencia, None)
+
+
+def mesclar(anterior: pd.DataFrame, novo: pd.DataFrame) -> pd.DataFrame:
+    """Junta o que já estava gravado com a coleta atual, a coleta atual vencendo.
+
+    A rodada diária consulta uma janela curta, mas o arquivo precisa guardar todo
+    o histórico de datas de divulgação — é dele que a camada de surpresa tira a
+    véspera de cada release. Sem mesclar, cada execução apagaria 2017-2025.
+
+    Onde as duas versões falam do mesmo par (produto, referência), vale a nova: o
+    IBGE remarca datas, e a informação mais recente é a correta. Isso é diferente
+    da regra das observações, que nunca sobrescreve — o calendário é metadado
+    mutável, não fato datado.
+    """
+    if anterior.empty:
+        return novo
+    if novo.empty:
+        return anterior
+
+    juntos = pd.concat([anterior, novo], ignore_index=True)
+    juntos["_chave"] = [_chave(linha) for _, linha in juntos.iterrows()]
+    # `keep="last"` com o novo no fim: a coleta atual vence.
+    juntos = juntos.drop_duplicates(subset="_chave", keep="last").drop(columns="_chave")
+    return (juntos.sort_values(["data_divulgacao", "produto_id"], kind="stable")
+                  .reset_index(drop=True))
+
+
 def salvar(df: pd.DataFrame) -> bool:
-    """Grava o instantâneo do calendário; devolve se algo mudou de fato.
+    """Mescla com o gravado e regrava só se o conteúdo mudou.
 
-    Diferente das observações, o calendário é **substituído** a cada coleta: ele
-    é metadado derivado e mutável (o IBGE remarca datas), não um fato datado que
-    precise ser preservado. A regra de nunca sobrescrever vale para observação.
-
-    Mas a gravação só acontece se o conteúdo mudou, ignorando `coletado_em`. Sem
-    esse cuidado o arquivo seria reescrito todo dia só porque o carimbo de tempo é
-    novo, e o histórico do Git encheria de commits que não dizem nada.
+    A comparação ignora `coletado_em`. Sem esse cuidado o arquivo seria reescrito
+    todo dia só porque o carimbo de tempo é novo, e o histórico do Git encheria de
+    commits que não dizem nada.
     """
     CAMINHO.parent.mkdir(parents=True, exist_ok=True)
 
-    if CAMINHO.exists():
-        anterior = pd.read_parquet(CAMINHO)
-        colunas = [c for c in df.columns if c != "coletado_em"]
-        if anterior.drop(columns=["coletado_em"], errors="ignore").equals(df[colunas]):
-            log.info("calendário sem alteração — arquivo mantido")
-            return False
+    anterior = carregar()
+    completo = mesclar(anterior, df)
+    colunas = [c for c in completo.columns if c != "coletado_em"]
+    if not anterior.empty and anterior[colunas].reset_index(drop=True).equals(
+            completo[colunas].reset_index(drop=True)):
+        log.info("calendário sem alteração — arquivo mantido")
+        return False
 
-    df.to_parquet(CAMINHO, index=False, compression="zstd")
+    completo.to_parquet(CAMINHO, index=False, compression="zstd")
     return True
+
+
+def divulgacoes(series_id: str, df: pd.DataFrame | None = None) -> pd.Series:
+    """Data de divulgação por período de referência, para uma série.
+
+    Chave do dicionário é `data_referencia`; valor é a data em que aquele número
+    foi ao ar. É o que a camada de surpresa precisa para achar o consenso da
+    véspera.
+    """
+    df = carregar() if df is None else df
+    if df.empty:
+        return pd.Series(dtype="object")
+    alvo = df[df["series_ids"].str.split(",").apply(lambda ids: series_id in ids)]
+    alvo = alvo[alvo["data_referencia"].notna()]
+    if alvo.empty:
+        return pd.Series(dtype="object")
+    alvo = alvo.sort_values("data_divulgacao", kind="stable")
+    return alvo.set_index("data_referencia")["data_divulgacao"]
 
 
 def carregar() -> pd.DataFrame:
@@ -162,6 +225,9 @@ def main(argv: list[str] | None = None) -> int:
     from ..config import calendario_produtos
 
     parser = argparse.ArgumentParser(description="Coleta o calendário de divulgações do IBGE")
+    parser.add_argument("--backfill", action="store_true",
+                        help=f"varre desde {INICIO_COBERTURA:%Y}, ano a ano, em vez da "
+                             "janela curta da rodada diária")
     parser.add_argument("--verboso", action="store_true")
     args = parser.parse_args(argv)
 
@@ -172,14 +238,23 @@ def main(argv: list[str] | None = None) -> int:
 
     produtos = calendario_produtos()
     try:
-        df = buscar(produtos)
+        if args.backfill:
+            partes = []
+            for ano in range(INICIO_COBERTURA.year, dt.date.today().year + 2):
+                parte = buscar(produtos, de=dt.date(ano, 1, 1), ate=dt.date(ano, 12, 31))
+                log.info("  %d: %d evento(s)", ano, len(parte))
+                partes.append(parte)
+            df = pd.concat([p for p in partes if not p.empty], ignore_index=True)
+        else:
+            df = buscar(produtos)
     except ErroCalendario as exc:
-        # Falha aqui não pode derrubar o pipeline: o calendário é auxiliar.
+        # Falha aqui não pode derrubar o pipeline: o calendário não dispara nada.
         log.warning("calendário indisponível (%s) — seguindo sem ele", exc)
         return 0
 
     salvar(df)
-    log.info("calendário: %d evento(s) de %d produto(s)", len(df), len(produtos))
+    log.info("calendário: %d evento(s) coletado(s) de %d produto(s); %d no arquivo",
+             len(df), len(produtos), len(carregar()))
     for _, linha in proximas(df, limite=5).iterrows():
         log.info("  %s  %s (ref %s)", linha["data_divulgacao"],
                  linha["produto"], linha["data_referencia"])

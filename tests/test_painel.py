@@ -264,6 +264,32 @@ def test_idade_em_linguagem_de_painel():
 
 # ------------------------------------------------------------------- gráficos
 
+def test_o_empilhamento_nunca_remove_o_eixo_de_um_painel():
+    """`axis=None` num `vconcat` de escala compartilhada quebra o Vega no navegador.
+
+    Regressão observada de verdade: ao esconder as réguas de ano repetidas, os
+    dois painéis de cima ficaram com `axis=None`, o Vega-Lite não resolveu a
+    escala compartilhada e o gráfico inteiro sumiu — com erro só no console do
+    JavaScript. Nenhum teste de Python pegava, porque do lado de cá a
+    especificação era gerada sem exceção. O jeito certo é esconder rótulos e
+    marcas, mantendo o objeto de eixo.
+    """
+    reg = dados.regime_mensal()
+    especificacao = graficos.historia_do_regime(
+        reg, dados.episodios(reg), dados.recessoes()).to_dict()
+
+    paineis = especificacao["vconcat"]
+    assert len(paineis) == 3
+    for painel in paineis:
+        camadas = painel.get("layer", [painel])
+        for camada in camadas:
+            x = camada.get("encoding", {}).get("x")
+            if x is None:
+                continue
+            assert "axis" not in x or isinstance(x["axis"], dict), (
+                "eixo removido em vez de escondido — o gráfico some no navegador")
+
+
 def test_todo_quadrante_tem_cor():
     from ciclo_br.regime import QUADRANTES
 

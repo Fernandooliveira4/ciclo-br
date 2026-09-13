@@ -83,15 +83,22 @@ def eixo_no_tempo(
 ) -> alt.LayerChart:
     """Um eixo, seu corte e as recessões oficiais ao fundo.
 
-    `eixo_do_tempo` desliga os rótulos de ano: num empilhamento com escala de
+    `eixo_do_tempo` esconde os rótulos de ano: num empilhamento com escala de
     tempo compartilhada, três réguas idênticas só ocupam espaço — a de baixo
     serve os três painéis.
+
+    Note que o eixo é **escondido**, não removido: `axis=None` num dos painéis
+    de um `vconcat` com escala compartilhada quebra a resolução de escala do
+    Vega-Lite e o gráfico inteiro deixa de desenhar, com erro só no console do
+    navegador. Um teste de renderização em Python não pega isso, porque o erro
+    é do lado do JavaScript.
     """
     base = alt.Chart(reg)
 
+    regua = (alt.Axis(format="%Y") if eixo_do_tempo
+             else alt.Axis(labels=False, ticks=False, domain=False, title=None))
     linha = base.mark_line(color="#1f2933", strokeWidth=1.6).encode(
-        x=alt.X("data:T", title=None,
-                axis=alt.Axis(format="%Y") if eixo_do_tempo else None),
+        x=alt.X("data:T", title=None, axis=regua),
         y=alt.Y(f"{coluna}:Q", title=titulo),
         tooltip=[
             alt.Tooltip("data:T", title="Mês", format="%m/%Y"),

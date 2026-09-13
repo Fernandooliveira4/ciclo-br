@@ -81,3 +81,30 @@ def test_id_duplicado_e_rejeitado(tmp_path):
     caminho.write_text(yaml.safe_dump({"series": [ficha, dict(ficha)]}), encoding="utf-8")
     with pytest.raises(config.FichaInvalida, match="duplicado"):
         config.carregar(caminho)
+
+
+def test_o_codespace_roda_a_mesma_versao_de_python_que_a_ci():
+    """Um ambiente que a CI nunca exercita e um lugar onde o bug aparece so ali.
+
+    O `pyproject` aceita >=3.11, entao o dev container em 3.11 funcionaria e a
+    divergencia passaria despercebida ate alguem abrir um Codespace e ver um
+    erro que nao reproduz em lugar nenhum.
+    """
+    import json
+    import re
+    from pathlib import Path
+
+    raiz = Path(config.__file__).resolve().parents[2]
+
+    bruto = (raiz / ".devcontainer" / "devcontainer.json").read_text(encoding="utf-8")
+    imagem = json.loads(re.sub(r"^\s*//.*$", "", bruto, flags=re.M))["image"]
+    do_codespace = re.search(r"python:\d+-(\d+\.\d+)", imagem).group(1)
+
+    fluxos = sorted((raiz / ".github" / "workflows").glob("*.yml"))
+    assert fluxos, "nenhum workflow encontrado"
+    for fluxo in fluxos:
+        for versao in re.findall(r"python-version:\s*[\"']?([\d.]+)",
+                                 fluxo.read_text(encoding="utf-8")):
+            assert versao == do_codespace, (
+                f"{fluxo.name} roda em {versao} e o Codespace em {do_codespace}"
+            )

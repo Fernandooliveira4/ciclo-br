@@ -1,7 +1,9 @@
 {
-  "name": "Python 3",
-  // Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
-  "image": "mcr.microsoft.com/devcontainers/python:1-3.11-bookworm",
+  "name": "ciclo-br",
+  // 3.12 e a mesma versao dos workflows em .github/workflows/. O pyproject
+  // aceita >=3.11, entao 3.11 funcionaria -- mas um Codespace numa versao que
+  // a CI nunca exercita e um ambiente onde o bug aparece so aqui.
+  "image": "mcr.microsoft.com/devcontainers/python:1-3.12-bookworm",
   "customizations": {
     "codespaces": {
       "openFiles": [

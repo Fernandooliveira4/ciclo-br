@@ -18,7 +18,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.3", "ruff>=0.8"]
+# O painel é extra de propósito: o job de ingestão roda `pip install -e .` e não
+# precisa de Streamlit para coletar dado. Quem instala o extra é o desenvolvedor,
+# a CI e o Streamlit Cloud.
+painel = ["streamlit>=1.40"]
+dev = ["pytest>=8.3", "ruff>=0.8", "streamlit>=1.40"]
 
 [project.scripts]
 ciclo-ingest = "ciclo_br.ingestion.run:main"

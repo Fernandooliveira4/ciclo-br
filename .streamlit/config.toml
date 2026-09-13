@@ -1,0 +1,14 @@
+# Tema fixo para que a gravação da demonstração e o que o avaliador vê sejam a
+# mesma tela, independentemente da preferência de tema do navegador.
+[theme]
+base = "light"
+primaryColor = "#2a9d8f"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f4f6f8"
+textColor = "#1f2933"
+
+[server]
+headless = true
+
+[browser]
+gatherUsageStats = false

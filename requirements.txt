@@ -7,3 +7,7 @@ pandas==3.0.5
 pyarrow==25.0.1
 duckdb==1.5.5
 statsmodels==0.15.0
+# O painel. Altair vem junto com o Streamlit, mas fica fixado aqui porque os
+# gráficos dependem dele diretamente.
+streamlit==1.63.0
+altair==6.2.2

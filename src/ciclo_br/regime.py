@@ -200,14 +200,16 @@ def sinais(reg: pd.DataFrame, *, corte_crescimento: str = "mediana") -> tuple[pd
 
     `corte_crescimento` escolhe contra o que o momentum é comparado:
 
-    - ``"mediana"``: a mediana expansiva gravada em `corte_crescimento`. É o
-      corte vigente, e responde "cresce acima do padrão histórico brasileiro?".
     - ``"zero"``: momentum zero, isto é, nível de atividade caindo. Responde
-      "está encolhendo?", que é mais próximo do que o CODACE data.
+      "está encolhendo?", que é a pergunta que o CODACE responde. **É o corte
+      vigente**, definido em `CORTE_CRESCIMENTO`.
+    - ``"mediana"``: a mediana expansiva do próprio eixo. Responde "cresce acima
+      do padrão histórico brasileiro?". Foi o corte original, trocado depois da
+      medição descrita na seção 7 da metodologia.
 
-    Os dois existem aqui para que a validação possa medir os dois sem que o
-    classificador mude de opinião por conta própria. O padrão do projeto
-    continua sendo a mediana.
+    Os dois continuam existindo para que a validação meça os dois com a mesma
+    régua. O argumento contra a mediana está medido e versionado; refazer a
+    escolha custa uma medição, não um palpite.
     """
     indice = pd.PeriodIndex(pd.to_datetime(reg["data_referencia"]), freq="M")
     eixo_g = pd.Series(reg["eixo_crescimento"].to_numpy(dtype="float64"), index=indice)

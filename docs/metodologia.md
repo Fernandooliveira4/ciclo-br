@@ -183,7 +183,7 @@ recessões" quase não informa — um sinal ligado em quatro de cada cinco meses
 acerta todas por construção — e a aparente antecipação de doze meses era só o
 sinal ligando cedo e ficando ligado. Com corte em zero, fica ligado em 36% dos
 meses e passa a acompanhar as recessões com atraso de três a quatro meses. A
-tabela completa está na seção 7.3; a decisão está registrada na seção 8.
+tabela completa está na seção 7.3; a decisão está registrada na seção 9.
 
 **Consequência que permanece, agora só do lado da inflação.** O eixo de inflação
 mede desvio do passado brasileiro, não desvio da meta. Em junho de 2026 o núcleo
@@ -559,7 +559,96 @@ repositório.
 
 ---
 
-## 8. Registro de decisões
+## 8. O painel
+
+Cinco páginas: **Regime**, **Séries**, **Surpresas**, **Validação** e
+**Metodologia**. A última não é apêndice — é o motivo de as outras quatro terem
+o direito de existir. Um painel macro que mostra um classificador sem mostrar
+contra o que ele foi validado, com que atraso ele responde e o que ele não
+consegue afirmar está vendendo confiança que não construiu.
+
+### 8.1 A regra: o painel só lê arquivo
+
+Nenhum módulo do painel importa a camada de ingestão nem um cliente HTTP. Tudo o
+que aparece na tela saiu de um arquivo versionado no repositório:
+`data/derivado/regime.parquet`, `validacao_defasagens.csv`,
+`validacao_resumo.csv`, `surpresa.csv`, `data/calendario.parquet`, os Parquet de
+série bruta, `config/series.yaml`, `config/codace_cronologia.csv` e este próprio
+documento.
+
+A regra é verificada por **dois testes**, e não por disciplina:
+
+1. Um lê o código-fonte de cada módulo do painel e reprova qualquer import de
+   `requests`, `urllib`, `http`, `socket` ou `ciclo_br.ingestion`.
+2. O outro importa o painel com os módulos de ingestão retirados de
+   `sys.modules` e confere que nenhum voltou — o que pega o caminho indireto,
+   em que um módulo do painel importasse `ciclo_br.surpresa` e arrastasse a
+   ingestão junto sem nunca escrever a palavra.
+
+Dois caminhos de artefato (`surpresa.csv` e `calendario.parquet`) foram movidos
+para `config.py` justamente por isso: eram declarados em módulos que falam com
+a rede, e o painel precisava conhecê-los sem passar por lá.
+
+**Três coisas dependem dessa regra.** A tela não pode divergir do pipeline, já
+que ela não recalcula nada e os portões de CI conferem os arquivos. O painel
+abre sem rede e sem credencial, inclusive offline. E, como o estado inteiro do
+projeto está em arquivo versionado, voltar o repositório a um commit anterior faz
+o painel mostrar o que ele mostrava naquele dia — sem nenhum modo especial.
+
+### 8.2 O que o painel não tem, de propósito
+
+**Não há seletor de "como estava em março de 2015".** Reconstruir aquela tela com
+o dado revisado de hoje seria o mesmo viés de look-ahead que o ajuste sazonal
+recursivo existe para eliminar, e sairia mais bonito do que a verdade permite. A
+única volta ao passado honesta é a do parágrafo acima: o commit daquele dia.
+
+**Não há cache.** As tabelas têm centenas de linhas e a leitura custa
+milissegundos; em troca, some a classe de bug mais irritante de um painel de
+dados, que é a tela continuar mostrando o número velho depois de o pipeline
+rodar.
+
+**Não há número calculado na tela.** O resumo do regime exibido é o mesmo objeto
+que o comando `ciclo-regime` imprime no log — há teste comparando os dois. O
+painel escolhe a linha da varredura que corresponde ao classificador em uso, em
+vez de assumir; sem isso, ele poderia exibir a defasagem de uma configuração que
+não é a que gerou os quadrantes ao lado.
+
+### 8.3 Três decisões de gráfico que não são estéticas
+
+**O mapa de quadrantes plota distância ao corte, não o valor do eixo.** O corte
+de inflação se move — é a mediana expansiva do próprio histórico. Com valores
+crus, a fronteira do quadrante seria uma linha que anda e o leitor teria que
+adivinhar onde ela estava em cada mês. Plotando a distância, a fronteira é o zero
+em todos os meses, e o quadrante que se vê é exatamente o que o classificador
+diz. O domínio é forçado a conter o zero nos dois eixos, para que a fronteira
+esteja sempre à vista.
+
+**Os dois eixos não dividem a mesma escala.** O momentum de crescimento foi de
+−38 a +40 na covid; o eixo de inflação vive entre 0 e 13. Num gráfico só, a
+inflação viraria uma linha reta. São dois painéis empilhados com o eixo do tempo
+compartilhado, e a tarja de quadrantes embaixo.
+
+**As faixas de recessão são aparadas na janela do gráfico.** A cronologia do
+CODACE começa em 1980 e o eixo de crescimento, em 2003. Sem o recorte, metade do
+gráfico seria faixa cinza sobre espaço vazio e o período com dado ficaria
+espremido na direita.
+
+### 8.4 Procedência na tela
+
+A página de Metodologia abre com a lista de todo arquivo que o painel leu, com
+tamanho, data de geração e o comando que o produz. É a resposta literal a "de
+onde vem esse número", e é também o lugar onde a **ausência** de um artefato
+aparece como informação: falta de arquivo vira instrução com o comando que o
+gera, não traceback. Quem clona o repositório e ainda não rodou o pipeline
+descobre isso pela tela.
+
+O documento renderizado nessa página é este arquivo, e não um resumo dele. Duas
+versões do mesmo argumento divergiriam na primeira mudança, e a que ficaria
+desatualizada seria justamente a que o leitor vê.
+
+---
+
+## 9. Registro de decisões
 
 | Data | Decisão | Motivo |
 |---|---|---|
@@ -582,3 +671,7 @@ repositório.
 | 2026-09-12 | PIB entra pela série SGS 22099, com a definição estabelecida por conferência | o BCB não publica nome de série por API; a ficha registra o que foi testado (seção 5.2) |
 | 2026-09-12 | Câmbio fora da medida de surpresa | PTAX é preço contínuo, não tem divulgação com hora marcada (seção 5.2) |
 | 2026-09-12 | Tolerância de comparação uma ordem acima da granularidade de gravação | iguais, o arredondamento criava diferença de exatamente 1e-6 e reprovava a CI (seção 4b) |
+| 2026-09-13 | Painel só lê arquivo versionado, sem importar a ingestão | a tela não pode divergir do pipeline, e é o que torna o replay por commit possível (seção 8.1) |
+| 2026-09-13 | Sem seletor de "como estava em data X" no painel | reconstruir o passado com dado revisado de hoje é o viés que a camada derivada existe para evitar (seção 8.2) |
+| 2026-09-13 | Página de Metodologia renderiza `docs/metodologia.md`, não um resumo | duas versões do mesmo argumento divergem, e a desatualizada seria a que o leitor vê (seção 8.4) |
+| 2026-09-13 | Mapa de quadrantes em distância ao corte, não em valor do eixo | o corte de inflação se move; em valores crus a fronteira seria uma linha que anda (seção 8.3) |

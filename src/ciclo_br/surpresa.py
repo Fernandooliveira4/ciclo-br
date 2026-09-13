@@ -60,12 +60,12 @@ from dataclasses import dataclass
 import pandas as pd
 
 from . import storage, transformacao
-from .config import DIR_DADOS, catalogo
+from .config import CAMINHO_SURPRESA, catalogo
 from .ingestion import calendario
 
 log = logging.getLogger(__name__)
 
-CAMINHO = DIR_DADOS / "derivado" / "surpresa.csv"
+CAMINHO = CAMINHO_SURPRESA
 
 # Quantos dias depois da divulgação a coleta ainda conta como "observada ao
 # vivo". A ingestão roda duas vezes por dia útil, então uma divulgação de sexta

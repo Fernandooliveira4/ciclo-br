@@ -18,3 +18,6 @@ Thumbs.db
 *.egg-info/
 build/
 dist/
+
+# Configuracao local do runner de preview (caminho de venv do Windows).
+.claude/

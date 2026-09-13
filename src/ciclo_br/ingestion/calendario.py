@@ -34,13 +34,13 @@ from tenacity import (
     wait_exponential,
 )
 
-from ..config import DIR_DADOS
+from ..config import CAMINHO_CALENDARIO
 
 log = logging.getLogger(__name__)
 
 BASE = "https://servicodados.ibge.gov.br/api/v3/calendario/"
 TEMPO_LIMITE = 60
-CAMINHO = DIR_DADOS / "calendario.parquet"
+CAMINHO = CAMINHO_CALENDARIO
 
 # Antes de 2017 a API responde com lista vazia para todos os produtos usados
 # aqui. Verificado produto a produto em 12/09/2026; é o limite da fonte, não uma

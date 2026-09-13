@@ -10,9 +10,10 @@ contra o consenso do Focus, e publica um briefing — mas só quando há dado no
 ![CI](https://github.com/Fernandooliveira4/ciclo-br/actions/workflows/ci.yml/badge.svg)
 ![Ingestão](https://github.com/Fernandooliveira4/ciclo-br/actions/workflows/ingest.yml/badge.svg)
 
-> **Status:** em construção. Semanas 1 a 6 de 8 concluídas — ingestão, armazenamento,
+> **Status:** em construção. Semanas 1 a 7 de 8 concluídas — ingestão, armazenamento,
 > expectativas do Focus, agendamento automático, o classificador de regime, a
-> validação contra a datação oficial do CODACE e a medida de surpresa por divulgação.
+> validação contra a datação oficial do CODACE, a medida de surpresa por divulgação
+> e o painel. Falta o briefing automatizado.
 > O roteiro completo está em [Roadmap](#roadmap).
 
 ---
@@ -20,7 +21,7 @@ contra o consenso do Focus, e publica um briefing — mas só quando há dado no
 ## Por que este projeto é diferente de um painel de indicadores
 
 A maior parte dos dashboards macro de portfólio empilha gráficos e detecta
-outliers estatísticos. Quatro decisões afastam este daqui disso:
+outliers estatísticos. Cinco decisões afastam este daqui disso:
 
 **1. A estatística decide, o modelo de linguagem apenas descreve.**
 A classificação de regime e a medida de surpresa são calculadas de forma
@@ -51,7 +52,17 @@ divulgações do IPCA a surpresa média é **+0,01 p.p.** — que é o teste da 
 inteira: consenso não enviesado dá média zero. Nas séries que são revisadas a
 média não é zero, e isso está medido e explicado em vez de escondido.
 
-**4. Nenhum dado é sobrescrito.**
+**4. O painel só lê arquivo.**
+Nenhuma página do dashboard importa a camada de ingestão ou chama API: tudo o que
+aparece na tela saiu de um arquivo versionado no repositório, e dois testes
+travam essa regra. A consequência é que a tela não tem como divergir do pipeline,
+o app abre offline, e voltar o repositório a um commit anterior faz o painel
+mostrar o que ele mostrava naquele dia — sem nenhum modo especial. O que ele
+**não** tem é um seletor de "como estava em março de 2015": reconstruir aquela
+tela com o dado revisado de hoje seria o viés de look-ahead que o resto do projeto
+existe para evitar.
+
+**5. Nenhum dado é sobrescrito.**
 Não existe base de vintages pública para séries brasileiras. Este projeto
 constrói a sua: cada observação é gravada com a data em que foi coletada, e uma
 revisão retroativa do Banco Central vira uma linha nova em vez de apagar a
@@ -126,6 +137,17 @@ ciclo-qualidade                  # portões de qualidade (código 1 reprova)
 pytest                           # suíte de testes
 ```
 
+O painel:
+
+```bash
+pip install -e ".[painel]"
+streamlit run app.py
+```
+
+Cinco páginas — Regime, Séries, Surpresas, Validação e Metodologia. Ele **só lê
+arquivo**: se um artefato ainda não foi gerado, a tela diz qual comando o produz
+em vez de quebrar.
+
 Consulta:
 
 ```python
@@ -183,7 +205,7 @@ Estão detalhadas em [docs/metodologia.md](docs/metodologia.md). As principais:
 | 4 | Classificador de quadrante | ✅ concluída |
 | 5 | Transcrição do CODACE e medição de defasagem | ✅ concluída |
 | 6 | Surpresas realizado × Focus | ✅ concluída |
-| 7 | Dashboard Streamlit (5 páginas, com Metodologia) | — |
+| 7 | Dashboard Streamlit (5 páginas, com Metodologia) | ✅ concluída |
 | 8 | Briefing com LLM, modo replay para demonstração, publicação | — |
 
 **Ordem de sacrifício**, se o prazo apertar: o LLM cai primeiro (o template

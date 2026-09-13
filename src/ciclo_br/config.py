@@ -18,6 +18,16 @@ import yaml
 RAIZ = Path(__file__).resolve().parents[2]
 CAMINHO_SERIES = RAIZ / "config" / "series.yaml"
 DIR_DADOS = RAIZ / "data"
+DIR_DERIVADO = DIR_DADOS / "derivado"
+
+# Dois caminhos de artefato moram aqui, e não no módulo que os escreve, por um
+# motivo de dependência: o painel precisa saber onde eles estão sem importar
+# `ciclo_br.ingestion`, que é a única parte do projeto que fala com a rede. O
+# painel só lê arquivo, e essa promessa fica mais fácil de manter quando o
+# caminho está num módulo que não tem como buscar nada.
+CAMINHO_SURPRESA = DIR_DERIVADO / "surpresa.csv"
+CAMINHO_CALENDARIO = DIR_DADOS / "calendario.parquet"
+CAMINHO_METODOLOGIA = RAIZ / "docs" / "metodologia.md"
 
 PAPEIS = {"eixo_crescimento", "eixo_inflacao", "contexto", "auditoria", "surpresa"}
 AJUSTES = {"origem", "proprio", "nao_aplicavel"}

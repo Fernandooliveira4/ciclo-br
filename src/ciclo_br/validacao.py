@@ -253,10 +253,12 @@ def varrer(reg: pd.DataFrame, crono: pd.DataFrame, persistencias=PERSISTENCIAS,
     Reaplica a regra sobre os sinais brutos dos dois eixos, que a camada de
     regime guarda exatamente para isto. Persistência 1 equivale a não ter regra.
 
-    O corte "zero" entra na varredura mas **não** muda o classificador: o
-    projeto continua usando a mediana expansiva. Ele está aqui porque a pergunta
-    "o corte escolhido é o que está atrapalhando?" só tem resposta se as duas
-    versões forem medidas com a mesma régua, lado a lado e versionadas.
+    Os dois cortes entram na varredura, e é isso que torna a escolha entre eles
+    verificável: a pergunta "o corte escolhido é o que está atrapalhando?" só tem
+    resposta se as duas versões forem medidas com a mesma régua, lado a lado e
+    versionadas. Foi assim que a mediana expansiva perdeu para o zero — e a
+    tabela com o resultado das duas continua no repositório, não só a da
+    vencedora.
     """
     grade = [(c, m) for c in cortes for m in persistencias]
 

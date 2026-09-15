@@ -130,6 +130,95 @@ evitar.
 
 ## Arquitetura
 
+O caminho que um número faz, da fonte até a tela:
+
+```
+┌──────────────────────────┐        ┌──────────────────────────┐        ┌──────────────────────────┐
+│ BANCO CENTRAL            │        │ FOCUS (BCB)              │        │ IBGE                     │
+│ os números do país:      │        │ o que o mercado esperava │        │ o calendário: a data em  │
+│ atividade, preços, juros │        │ antes de o número sair   │        │ que o número foi ao ar   │
+└────────────┬─────────────┘        └────────────┬─────────────┘        └────────────┬─────────────┘
+             └───────────────────────────────────┬───────────────────────────────────┘
+                                                 │
+                                                 ▼
+┌────────────────────────────────────────────────┴─────────────────────────────────────────────────┐
+│ 1 · O CADERNO QUE NUNCA APAGA                                                                    │
+│   todo número é guardado com a data em que foi coletado. Quando a fonte                          │
+│   corrige um dado, a correção entra como uma linha nova — a versão antiga                        │
+│   continua lá, do lado. É o que permite saber, hoje, o que se sabia em 2017.                     │
+└────────────────────────────────────────────────┬─────────────────────────────────────────────────┘
+                       ┌─────────────────────────┴─────────────────────────┐
+                       ▼                                                   ▼
+┌──────────────────────────────────────────────┐    ┌──────────────────────────────────────────────┐
+│ 2 · A FAXINA                                 │    │ 5 · A PROVA DA SURPRESA                      │
+│   tira das séries o efeito da época do       │    │   para cada divulgação, recupera o palpite   │
+│   ano (dezembro sempre vende mais) e mede    │    │   do mercado na véspera e mede o tamanho do  │
+│   se a atividade está pegando ou perdendo    │    │   susto: o número veio acima ou abaixo do    │
+│   ritmo                                      │    │   que se esperava?                           │
+└──────────────────────┬───────────────────────┘    └──────────────────────┬───────────────────────┘
+                       │                                                   │
+                       ▼                                                   │
+┌──────────────────────┴───────────────────────┐                           │
+│ 3 · A BÚSSOLA                                │                           │
+│   cruza crescimento com inflação e aponta    │                           │
+│   um dos quatro quadrantes abaixo. Só vira   │                           │
+│   se o sinal novo se repetir três meses —    │                           │
+│   tropeço de um mês não é mudança de rumo    │                           │
+└──────────────────────┬───────────────────────┘                           │
+                       │                                                   │
+                       ▼                                                   │
+┌──────────────────────┴───────────────────────┐                           │
+│ 4 · A PROVA DO ATRASO                        │                           │
+│   confere a bússola contra a datação         │                           │
+│   oficial das recessões (CODACE) e mede de   │                           │
+│   quantos meses é o atraso do sinal. Essa    │                           │
+│   conferência já mudou o projeto duas vezes  │                           │
+└──────────────────────┬───────────────────────┘                           │
+                       └─────────────────────────┬─────────────────────────┘
+                                                 ▼
+┌────────────────────────────────────────────────┴─────────────────────────────────────────────────┐
+│ 6 · O RECADO E O PAINEL                                                                          │
+│   quando — e só quando — os fatos mudam, sai um briefing curto. O painel na web mostra           │
+│   tudo isso página por página, lendo apenas arquivo: ele nunca fala com a internet, e            │
+│   por isso não tem como mostrar uma coisa diferente do que o pipeline apurou.                    │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+Os quatro quadrantes da etapa 3 — é isso que o painel responde todo dia:
+
+```
+                        inflação acima da mediana histórica
+                                        ▲
+                 ESTAGFLAÇÃO            │            AQUECIMENTO
+                 não cresce e           │            cresce e
+                 pressiona preços       │            pressiona preços
+                                        │
+        ◄───────────────────────────────┼───────────────────────────────►
+     atividade encolhendo               │              atividade crescendo
+                                        │
+                 DESACELERAÇÃO          │            EXPANSÃO
+                 não cresce e           │            cresce sem
+                 não pressiona          │            pressionar preços
+                                        ▼
+                        inflação abaixo da mediana histórica
+```
+
+**O repositório é o banco de dados.** Não existe servidor de banco em lugar
+nenhum: cada série é um arquivo guardado junto com o código, e o histórico de
+commits é o histórico de coletas. Em termos técnicos, um Parquet por série,
+versionado no Git — arquivo DuckDB binário foi descartado de propósito, porque
+não versiona bem, e o objetivo é que cada coleta automática mostre exatamente
+qual número mudou.
+
+**A cadência é por divulgação, não diária.** O robô roda todo dia útil, compara o
+que a fonte devolve com o que já está gravado, e só escreve briefing quando os
+fatos mudam — divulgação nova, troca de quadrante, virada entrando em pendência.
+Na maior parte dos dias ele fica calado. Um sistema que sabe não falar é mais
+útil que um que parafraseia estabilidade.
+
+<details>
+<summary>O mesmo caminho, em termos técnicos</summary>
+
 ```
   SGS/BCB  ──┐
              ├──►  ingestão  ──►  Parquet append-only  ──►  DuckDB  ──┬──►  classificador de regime  ──┐
@@ -140,15 +229,12 @@ evitar.
                                                                                            ou gerador determinístico
 ```
 
-**O repositório é o banco de dados.** Um arquivo Parquet por série, versionado no
-Git. Arquivo DuckDB binário foi descartado de propósito: não versiona bem, e o
-objetivo é que cada commit automático mostre exatamente o que mudou.
+Cada caixa do desenho é um comando com nome próprio — `ciclo-ingest`,
+`ciclo-transformar`, `ciclo-regime`, `ciclo-validar`, `ciclo-surpresa`,
+`ciclo-briefing` —, todos listados em [Como rodar](#como-rodar). Só a ingestão
+tem acesso à rede; o painel, na outra ponta, só sabe ler arquivo.
 
-**A cadência é por divulgação, não diária.** O job roda todo dia útil, compara o
-que a API devolve com o que já está gravado, e só escreve briefing quando os
-fatos mudam — divulgação nova, troca de quadrante, virada entrando em pendência.
-Na maior parte dos dias ele fica calado. Um sistema que sabe não falar é mais
-útil que um que parafraseia estabilidade.
+</details>
 
 #### Oito portões de CI
 

@@ -1,0 +1,178 @@
+{
+  "data": "2026-09-16",
+  "fatos": {
+    "avisos": [
+      "O eixo de crescimento vem do IBC-Br, publicado com 45 a 60 dias de defasagem: o mês de referência do regime é sempre anterior ao mês corrente."
+    ],
+    "data": "2026-09-16",
+    "divulgacoes_anteriores": [
+      {
+        "consenso": "5,50",
+        "consenso_apurado_em": "22/06/2026",
+        "desvios_padrao": "0,5",
+        "dias_sem_mudanca": 38,
+        "divulgado_em": "30/07/2026",
+        "par": "desocupacao",
+        "realizado": "5,40",
+        "realizado_ja_revisado": true,
+        "referencia": "junho de 2026",
+        "surpresa": "-0,10 p.p."
+      },
+      {
+        "consenso": "0,06",
+        "consenso_apurado_em": "10/08/2026",
+        "desvios_padrao": "0,1",
+        "dias_sem_mudanca": 1,
+        "divulgado_em": "11/08/2026",
+        "par": "ipca",
+        "realizado": "0,07",
+        "realizado_ja_revisado": true,
+        "referencia": "julho de 2026",
+        "surpresa": "+0,01 p.p."
+      },
+      {
+        "consenso": "5,40",
+        "consenso_apurado_em": "31/07/2026",
+        "desvios_padrao": "0,5",
+        "dias_sem_mudanca": 27,
+        "divulgado_em": "27/08/2026",
+        "par": "desocupacao",
+        "realizado": "5,30",
+        "realizado_ja_revisado": true,
+        "referencia": "julho de 2026",
+        "surpresa": "-0,10 p.p."
+      },
+      {
+        "consenso": "1,90",
+        "consenso_apurado_em": "28/08/2026",
+        "desvios_padrao": "0,2",
+        "dias_sem_mudanca": 4,
+        "divulgado_em": "01/09/2026",
+        "par": "pib",
+        "realizado": "1,98",
+        "realizado_ja_revisado": true,
+        "referencia": "abril de 2026",
+        "surpresa": "+0,08 p.p."
+      }
+    ],
+    "divulgacoes_do_dia": [
+      {
+        "consenso": "-0,23",
+        "consenso_apurado_em": "08/09/2026",
+        "desvios_padrao": "0,9",
+        "dias_sem_mudanca": 3,
+        "divulgado_em": "11/09/2026",
+        "par": "ipca",
+        "realizado": "-0,32",
+        "realizado_ja_revisado": false,
+        "referencia": "agosto de 2026",
+        "surpresa": "-0,09 p.p."
+      }
+    ],
+    "numeros_permitidos": [
+      "1",
+      "3",
+      "4",
+      "8",
+      "01",
+      "02",
+      "06",
+      "07",
+      "08",
+      "09",
+      "10",
+      "11",
+      "16",
+      "22",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "36",
+      "38",
+      "45",
+      "60",
+      "0,0",
+      "0,1",
+      "0,2",
+      "0,5",
+      "0,9",
+      "1,2",
+      "4,3",
+      "5,3",
+      "0,01",
+      "0,06",
+      "0,07",
+      "0,08",
+      "0,09",
+      "0,10",
+      "0,23",
+      "0,32",
+      "1,90",
+      "1,98",
+      "2025",
+      "2026",
+      "5,30",
+      "5,40",
+      "5,50"
+    ],
+    "proximas_divulgacoes": [
+      {
+        "divulgacao": "29/09/2026",
+        "pesquisa": "Pesquisa Nacional por Amostra de Domicílios Contínua Mensal",
+        "referencia": "agosto de 2026"
+      },
+      {
+        "divulgacao": "02/10/2026",
+        "pesquisa": "Pesquisa Industrial Mensal: Produção Física - Brasil",
+        "referencia": "agosto de 2026"
+      },
+      {
+        "divulgacao": "09/10/2026",
+        "pesquisa": "Índice Nacional de Preços ao Consumidor Amplo",
+        "referencia": "setembro de 2026"
+      }
+    ],
+    "regime": {
+      "corte_de_crescimento": "0,0",
+      "corte_de_inflacao": "5,3",
+      "crescimento": "-1,2%",
+      "desde": "dezembro de 2025",
+      "inflacao": "4,3%",
+      "meses_esperando_confirmacao": 1,
+      "meses_no_quadrante": 8,
+      "meses_para_confirmar": 3,
+      "quadrante": "Expansão",
+      "referencia": "julho de 2026",
+      "virada_pendente": "Desaceleração"
+    },
+    "replay": false,
+    "validacao": {
+      "corte_de_crescimento": "zero",
+      "defasagem_no_pico": "+4",
+      "defasagem_no_vale": "+3",
+      "fracao_da_janela_com_sinal": "36%",
+      "persistencia_em_meses": 3,
+      "recessoes_avaliadas": 3,
+      "recessoes_detectadas": 3
+    },
+    "versao": 1
+  },
+  "gerado_em": "2026-09-16T12:45:22+00:00",
+  "gerador": "modelo",
+  "modelo": null,
+  "motivo": "caminho do modelo de linguagem desligado — sem chave no ambiente",
+  "mudancas": {
+    "divulgacoes": [],
+    "houve": true,
+    "pendencia_mudou": true,
+    "primeiro": false,
+    "quadrante_anterior": "Expansão",
+    "quadrante_mudou": false,
+    "referencia_avancou": true
+  },
+  "replay": false,
+  "texto": "**IPCA, referência agosto de 2026: -0,32 contra consenso de -0,23.** O número saiu abaixo do que o consenso projetava. Surpresa de -0,09 p.p., 0,9× o desvio padrão histórico do par — dentro da faixa de rotina. O consenso usado é a apuração do Focus de 08/09/2026, a última antes da divulgação de 11/09/2026; ele estava parado havia 3 dias.\n\n**Regime: Expansão desde dezembro de 2025 (8 meses).** Na referência de julho de 2026, o eixo de crescimento está em -1,2% contra corte em 0,0, e o de inflação em 4,3% contra corte em 5,3. O sinal cru já aponta Desaceleração há 1 mês; a regra exige 3 meses seguidos para confirmar a virada, então o quadrante vigente continua sendo o acima.\n\n**O sinal acompanha, não antecipa.** Contra a datação do CODACE, esta configuração — corte em zero, persistência de 3 meses — entra em contração com defasagem mediana de +4 meses e sai com +3, e fica ligada em 36% dos meses da janela avaliada.\n\n**No calendário:** Pesquisa Nacional por Amostra de Domicílios Contínua Mensal em 29/09/2026 (referência agosto de 2026); Pesquisa Industrial Mensal: Produção Física - Brasil em 02/10/2026 (referência agosto de 2026); Índice Nacional de Preços ao Consumidor Amplo em 09/10/2026 (referência setembro de 2026).\n\n**Ressalvas.** O eixo de crescimento vem do IBC-Br, publicado com 45 a 60 dias de defasagem: o mês de referência do regime é sempre anterior ao mês corrente.",
+  "versao": 1
+}

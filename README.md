@@ -16,8 +16,8 @@ contra o consenso do Focus, e publica um briefing — mas só quando há dado no
 
 [![O painel na página de Regime](docs/imagens/painel-regime.png)](https://regimemacro.streamlit.app)
 
-Seis páginas: **Regime**, **Briefing**, **Séries**, **Surpresas**, **Validação** e
-**Metodologia**. A primeira abertura leva algum tempo, porque o servidor hiberna
+Sete páginas: **Regime**, **Briefing**, **Séries**, **Investimento**,
+**Surpresas**, **Validação** e **Metodologia**. A primeira abertura leva algum tempo, porque o servidor hiberna
 quando ninguém visita.
 
 Para rodar na sua máquina:
@@ -243,7 +243,7 @@ Rodando sobre os dados versionados, a cada push:
 | Portão | O que pega |
 |---|---|
 | `ruff` | estilo e importação morta |
-| `pytest` | 222 testes, incluindo a renderização das seis páginas |
+| `pytest` | 294 testes, incluindo a renderização das sete páginas |
 | `ciclo-qualidade` | série vazia, buraco na grade, série parada |
 | `ciclo-transformar --verificar` | dado bruto versionado sem recalcular os eixos |
 | `ciclo-regime --verificar` | camada derivada nova sem reclassificar |
@@ -257,7 +257,7 @@ Um pipeline que quebra alto vale mais que um que grava lixo em silêncio.
 
 ## Dados
 
-16 séries, todas com ficha obrigatória em [`config/series.yaml`](config/series.yaml)
+19 séries, todas com ficha obrigatória em [`config/series.yaml`](config/series.yaml)
 declarando fonte, código, unidade, periodicidade, tratamento sazonal, papel no
 projeto e transformação aplicada. **Nenhuma série entra sem ficha completa** — e
 a regra é verificada por teste, não por disciplina.
@@ -268,6 +268,7 @@ a regra é verificada por teste, não por disciplina.
 | Inflação | IPCA mensal, IPCA 12m, núcleo por médias aparadas, núcleo versão congelada (auditoria) |
 | Política | Meta Selic, câmbio PTAX |
 | Expectativas | Focus: IPCA, desocupação e câmbio mensais; PIB trimestral |
+| Contas nacionais | PIB, formação bruta de capital fixo e consumo da administração pública, a preços correntes |
 
 O que o pipeline produz também é versionado: a camada derivada e o regime em
 Parquet, as tabelas de validação e surpresa em CSV — legíveis direto no GitHub,
@@ -392,7 +393,7 @@ Oito etapas, planejadas antes de começar, com ordem de sacrifício declarada.
 | 4 | Classificador de quadrante com regra de persistência |
 | 5 | Transcrição do CODACE e medição de defasagem |
 | 6 | Surpresa de cada divulgação contra o Focus da véspera |
-| 7 | Painel Streamlit de seis páginas, que só lê arquivo |
+| 7 | Painel Streamlit de sete páginas, que só lê arquivo |
 | 8 | Briefing verificado, com reconstrução para demonstração |
 
 **A ordem de sacrifício foi cumprida:** o LLM cairia primeiro — e caiu, com o

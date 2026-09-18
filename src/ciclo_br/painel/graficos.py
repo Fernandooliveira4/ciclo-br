@@ -35,10 +35,19 @@ from .tema import escala_quadrante as _escala_quadrante
 # este continua sendo o módulo onde o desenho mora.
 __all__ = [
     "COR_CORTE", "COR_RECESSAO", "ORDEM", "PALETA", "PALETA_FORTE",
+    "CORES_INVESTIMENTO",
     "eixo_no_tempo", "faixa_de_quadrantes", "historia_do_regime",
     "historico_de_surpresa", "mapa_de_quadrantes", "realizado_contra_consenso",
-    "recortar", "serie_simples", "varredura",
+    "recortar", "serie_simples", "series_comparadas", "varredura",
 ]
+
+# Azul e âmbar, e não o par verde/vermelho dos quadrantes: é o que tem a maior
+# folga de luminosidade da paleta e o que sobrevive a deuteranopia. Mora aqui,
+# junto das outras cores, para que o teste de paleta alcance.
+CORES_INVESTIMENTO = {
+    "Taxa de investimento": PALETA["Desaceleração"],
+    "Consumo do governo": PALETA["Aquecimento"],
+}
 
 
 def recortar(recessoes: pd.DataFrame, inicio, fim) -> pd.DataFrame:
@@ -398,6 +407,64 @@ def realizado_contra_consenso(tabela: pd.DataFrame) -> alt.LayerChart:
             ],
         )
     ).properties(height=240)
+
+
+def series_comparadas(
+    tabela: pd.DataFrame,
+    *,
+    titulo: str,
+    recessoes: pd.DataFrame | None = None,
+    cores: dict[str, str] | None = None,
+    altura: int = 340,
+) -> alt.LayerChart:
+    """Duas ou mais séries de MESMA unidade no mesmo eixo, com as recessões ao fundo.
+
+    Espera formato longo: `data_referencia`, `serie` (já com o rótulo de
+    exibição, não o id) e `valor`.
+
+    **Aqui o eixo é único, e isso é o oposto da escolha feita em
+    `historia_do_regime`.** Lá os dois painéis são empilhados porque o momentum
+    de crescimento foi de −38 a +40 e a inflação vive entre 0 e 13: num eixo só,
+    a inflação vira uma linha reta. Aqui as séries são percentuais do mesmo
+    denominador, medidas no mesmo trimestre, e ocupam a faixa de 14% a 21% — a
+    comparação de nível entre elas é precisamente a informação que o gráfico
+    existe para dar, e empilhar a destruiria. A regra não é "um eixo por série"
+    nem "um eixo para todas": dividir eixo só é legítimo quando as séries são
+    comensuráveis, e o custo de errar é simétrico nos dois sentidos.
+
+    `zero=False` porque o zero fica catorze pontos abaixo do menor valor
+    observado, e incluí-lo comprimiria trinta anos de variação numa faixa fina
+    no alto do desenho.
+
+    Genérica, e não `investimento_contra_governo`, porque o repositório já tem
+    `realizado_contra_consenso` com os nomes cravados no corpo — que é
+    exatamente a função que não deu para reaproveitar aqui.
+    """
+    cores = cores or {}
+    # Ordem de aparição, e não alfabética: é ela que o Vega usa na legenda, e a
+    # primeira série da tabela é a que o texto da página discute primeiro.
+    ordem = list(dict.fromkeys(tabela["serie"]))
+    linhas = alt.Chart(tabela).mark_line(strokeWidth=1.7).encode(
+        x=alt.X("data_referencia:T", title=None),
+        y=alt.Y("valor:Q", title=titulo, scale=alt.Scale(zero=False)),
+        color=alt.Color(
+            "serie:N",
+            scale=alt.Scale(domain=ordem,
+                            range=[cores.get(s, TINTA) for s in ordem]),
+            legend=alt.Legend(title=None, orient="bottom"),
+        ),
+        tooltip=[
+            alt.Tooltip("data_referencia:T", title="Trimestre", format="%m/%Y"),
+            alt.Tooltip("serie:N", title=None),
+            alt.Tooltip("valor:Q", title=titulo, format=".2f"),
+        ],
+    )
+    if recessoes is None or tabela.empty:
+        return alt.layer(linhas).properties(height=altura)
+
+    janela = recortar(recessoes, tabela["data_referencia"].min(),
+                      tabela["data_referencia"].max())
+    return alt.layer(_sombra_recessao(janela), linhas).properties(height=altura)
 
 
 def serie_simples(

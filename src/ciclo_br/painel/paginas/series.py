@@ -25,7 +25,7 @@ from .. import componentes, graficos
 def renderizar() -> None:
     componentes.titulo(
         "Séries",
-        "Dezesseis séries oficiais, cada uma com ficha obrigatória em "
+        "Dezenove séries oficiais, cada uma com ficha obrigatória em "
         "`config/series.yaml`. Nenhuma entra sem ela, e há teste verificando.",
     )
 

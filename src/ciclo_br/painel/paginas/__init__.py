@@ -1,1 +1,1 @@
-"""As cinco páginas do painel."""
+"""As sete páginas do painel."""

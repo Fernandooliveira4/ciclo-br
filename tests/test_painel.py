@@ -335,7 +335,7 @@ def test_todo_quadrante_tem_cor():
 
     assert set(QUADRANTES.values()) == set(graficos.PALETA)
     assert set(graficos.ORDEM) == set(graficos.PALETA)
-    assert set(graficos.PALETA_TEXTO) == set(graficos.PALETA)
+    assert set(graficos.PALETA_FORTE) == set(graficos.PALETA)
 
 
 def test_todo_quadrante_tem_explicacao_em_portugues_claro():
@@ -415,6 +415,166 @@ def test_a_pilula_escapa_html():
     assert "&lt;script&gt;" in marcado
 
     # O caminho normal continua intacto: o nome aparece legivel, com a cor certa.
+    # A pilula usa o tom FORTE, e nao o de preenchimento: aqui a cor e fundo de
+    # texto branco, e o tom de preenchimento do verde nao passa no contraste.
     normal = componentes.pilula("Expansão")
     assert ">Expansão<" in normal
-    assert graficos.PALETA["Expansão"] in normal
+    assert graficos.PALETA_FORTE["Expansão"] in normal
+
+
+# ---------------------------------------------------------- tokens de desenho
+
+def _luminancia(hexadecimal: str) -> float:
+    """Luminância relativa da WCAG 2.1, a partir de um hexadecimal `#rrggbb`."""
+    canais = [int(hexadecimal[i:i + 2], 16) / 255 for i in (1, 3, 5)]
+    linear = [c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+              for c in canais]
+    return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]
+
+
+def contraste(a: str, b: str) -> float:
+    """Razão de contraste da WCAG entre duas cores."""
+    claro, escuro = sorted((_luminancia(a), _luminancia(b)), reverse=True)
+    return (claro + 0.05) / (escuro + 0.05)
+
+
+def test_o_contraste_das_cores_de_quadrante_e_suficiente_para_o_papel():
+    """As duas tintas de cada quadrante servem aos dois papéis que elas têm.
+
+    Este teste existe porque a paleta anterior falhava exatamente aqui, e o
+    defeito levou meses para ser nomeado: o âmbar `#e9c46a` tinha 1,63:1 contra
+    o fundo, sumia como letra, e a resposta foi criar uma segunda paleta
+    escolhida no olho em vez de corrigir a primeira.
+
+    O tom de **preenchimento** pinta região e marca de gráfico, onde 3:1 basta
+    porque o nome do quadrante está escrito por cima. O tom **forte** é letra
+    sobre o papel e fundo de pílula sob letra branca, e os dois são texto
+    pequeno: 4,5:1 nas duas direções.
+    """
+    from ciclo_br.painel import tema
+
+    for nome, cor in tema.PALETA.items():
+        assert contraste(cor, tema.PAPEL) >= 3.0, (
+            f"{nome}: preenchimento {cor} tem "
+            f"{contraste(cor, tema.PAPEL):.2f}:1 contra o papel, abaixo de 3:1"
+        )
+
+    for nome, cor in tema.PALETA_FORTE.items():
+        assert contraste(cor, tema.PAPEL) >= 4.5, (
+            f"{nome}: tom forte {cor} tem {contraste(cor, tema.PAPEL):.2f}:1 "
+            f"como letra sobre o papel, abaixo de 4,5:1"
+        )
+        assert contraste("#ffffff", cor) >= 4.5, (
+            f"{nome}: letra branca sobre {cor} tem "
+            f"{contraste('#ffffff', cor):.2f}:1, abaixo de 4,5:1 — a pílula "
+            f"ficaria ilegível"
+        )
+
+
+def test_a_rampa_de_neutros_passa_no_contraste():
+    """Cada tinta é usada para texto, e texto pequeno pede 4,5:1.
+
+    `TINTA_3` é o piso: é a cor das legendas de figura, que são o menor texto
+    da tela. Ele já nasceu 0,25 abaixo do mínimo numa primeira tentativa, e é
+    o tipo de erro que passa despercebido porque a legenda "parece" legível
+    para quem tem a tela boa e a vista descansada.
+    """
+    from ciclo_br.painel import tema
+
+    for token in ("TINTA", "TINTA_2", "TINTA_3"):
+        cor = getattr(tema, token)
+        assert contraste(cor, tema.PAPEL) >= 4.5, (
+            f"{token} ({cor}) tem {contraste(cor, tema.PAPEL):.2f}:1 contra o "
+            f"papel, abaixo de 4,5:1"
+        )
+
+
+def test_o_tema_do_streamlit_concorda_com_o_modulo_de_tema():
+    """As cores existem em dois arquivos, e os dois precisam dizer o mesmo.
+
+    `tema.py` é onde a cor é derivada e explicada; `.streamlit/config.toml` é a
+    cópia que o Streamlit lê, e não tem como importar Python. Duas cópias
+    divergem na primeira pressa — este teste é o que impede que a tela mostre
+    uma paleta e o teste de contraste valide outra.
+    """
+    import tomllib
+
+    from ciclo_br.config import RAIZ
+    from ciclo_br.painel import tema
+
+    config = tomllib.loads(
+        (RAIZ / ".streamlit" / "config.toml").read_text(encoding="utf-8"))
+    bloco = config["theme"]
+
+    assert bloco["backgroundColor"].lower() == tema.PAPEL
+    assert bloco["secondaryBackgroundColor"].lower() == tema.PAPEL_2
+    assert bloco["textColor"].lower() == tema.TINTA
+    assert bloco["borderColor"].lower() == tema.REGUA
+    assert [c.lower() for c in bloco["chartCategoricalColors"]] == [
+        tema.PALETA[q] for q in tema.ORDEM
+    ], "a paleta categórica do Vega saiu da ordem ou das cores de `tema.py`"
+
+
+def test_as_fontes_do_tema_sao_aceitas_pelo_streamlit():
+    """A configuração de fonte falha em silêncio, e falhou.
+
+    `theme.font` documenta aceitar `"Nome:url"` e uma lista de fallback
+    separada por vírgula. A implementação divide a string no primeiro
+    dois-pontos e trata **todo o resto** como URL, sem nunca separar por
+    vírgula: uma lista de duas famílias vira uma URL com dois `family=`, que o
+    próprio Streamlit rejeita, e um sufixo `, serif` entra colado dentro da
+    URL. O painel subiu sem aviso nenhum e simplesmente não carregou fonte.
+
+    Por isso o config só nomeia as famílias e quem as carrega é o `@import` de
+    `componentes`. Este teste passa os três valores pelo mesmo parser que o
+    Streamlit usa e exige que nenhum levante nem produza URL.
+    """
+    import tomllib
+
+    from streamlit.runtime.theme_util import _parse_font_config
+
+    from ciclo_br.config import RAIZ
+
+    bloco = tomllib.loads(
+        (RAIZ / ".streamlit" / "config.toml").read_text(encoding="utf-8"))["theme"]
+
+    for propriedade in ("font", "headingFont", "codeFont"):
+        nome, url = _parse_font_config(bloco[propriedade], propriedade)
+        assert nome, f"{propriedade}: o Streamlit não extraiu nome de família"
+        assert url is None, (
+            f"{propriedade}: o config voltou a embutir URL ({url!r}). Quem "
+            f"carrega fonte é o @import de `componentes`, não esta chave."
+        )
+
+
+def test_o_painel_nao_tem_tema_escuro():
+    """O modo escuro do navegador não pode repintar o painel.
+
+    `base = "light"` não basta: o Streamlit manda `[theme]`, `[theme.light]` e
+    `[theme.dark]` como blocos separados, e o navegador em escuro cai no bloco
+    escuro — onde tudo que não estiver declarado volta ao padrão de fábrica. O
+    sintoma foi um painel preto com os números em tinta escura por cima,
+    ilegíveis, porque o CSS do projeto assume papel claro.
+
+    Um tema escuro de verdade não é este aqui invertido: as quatro cores dos
+    quadrantes teriam que ser reescolhidas contra o fundo escuro e revalidadas
+    nos mesmos portões. Enquanto isso não for feito, `[theme.dark]` repete o
+    papel — e este teste existe para que ninguém remova a repetição achando
+    que é duplicação à toa.
+    """
+    import tomllib
+
+    from ciclo_br.config import RAIZ
+    from ciclo_br.painel import tema
+
+    config = tomllib.loads(
+        (RAIZ / ".streamlit" / "config.toml").read_text(encoding="utf-8"))
+    escuro = config["theme"].get("dark")
+    assert escuro, "[theme.dark] sumiu: o painel volta a ficar preto no modo escuro"
+
+    assert escuro["backgroundColor"].lower() == tema.PAPEL
+    assert escuro["textColor"].lower() == tema.TINTA
+    assert escuro["secondaryBackgroundColor"].lower() == tema.PAPEL_2
+    assert [c.lower() for c in escuro["chartCategoricalColors"]] == [
+        tema.PALETA[q] for q in tema.ORDEM
+    ]

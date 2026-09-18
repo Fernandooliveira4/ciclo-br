@@ -34,14 +34,12 @@ def renderizar() -> None:
     por_par = dados.surpresas_por_par(tabela)
 
     _ultimas(por_par)
-    st.divider()
     _detalhe(tabela, por_par)
-    st.divider()
     _vies(por_par)
 
 
 def _ultimas(por_par: pd.DataFrame) -> None:
-    st.subheader("A última divulgação de cada par")
+    componentes.secao("A última divulgação de cada par")
     colunas = st.columns(len(por_par))
 
     for coluna, (_, linha) in zip(colunas, por_par.iterrows(), strict=True):
@@ -50,14 +48,12 @@ def _ultimas(por_par: pd.DataFrame) -> None:
             if linha["desvio_padrao"] else 0.0
         )
         with coluna:
-            st.metric(
+            componentes.numeros([(
                 ROTULOS.get(linha["par"], linha["par"]),
                 formato.numero(linha["realizado"], 2),
-                delta=f"{formato.numero(linha['surpresa'], 2, sinal=True)} "
-                      f"{linha['unidade']} vs. consenso",
-                delta_color="off",
-                delta_arrow="off",
-            )
+                f"{formato.numero(linha['surpresa'], 2, sinal=True)} "
+                f"{linha['unidade']} vs. consenso",
+            )])
             st.caption(
                 f"Consenso de {formato.numero(linha['consenso'], 2)} · "
                 f"referência {formato.mes_curto(linha['ultima_referencia'])} · "
@@ -75,7 +71,7 @@ def _ultimas(por_par: pd.DataFrame) -> None:
 
 
 def _detalhe(tabela: pd.DataFrame, por_par: pd.DataFrame) -> None:
-    st.subheader("Histórico por par")
+    componentes.secao("Histórico por par")
     par = st.selectbox(
         "Par", list(por_par["par"]),
         format_func=lambda p: ROTULOS.get(p, p),
@@ -83,28 +79,29 @@ def _detalhe(tabela: pd.DataFrame, por_par: pd.DataFrame) -> None:
     recorte = tabela[tabela["par"] == par].sort_values("data_divulgacao")
     info = por_par[por_par["par"] == par].iloc[0]
 
-    a, b, c, d = st.columns(4)
-    a.metric("Divulgações medidas", f"{int(info['observacoes'])}")
-    b.metric("Surpresa média",
-             f"{formato.numero(info['media'], 2, sinal=True)} p.p.")
-    c.metric("Desvio padrão", f"{formato.numero(info['desvio_padrao'], 2)} p.p.")
-    d.metric("Consenso parado, em média",
-             f"{formato.numero(info['dias_sem_mudanca_medio'], 0)} dias")
+    componentes.numeros([
+        ("Divulgações medidas", f"{int(info['observacoes'])}", None),
+        ("Surpresa média",
+         f"{formato.numero(info['media'], 2, sinal=True)} p.p.", None),
+        ("Desvio padrão",
+         f"{formato.numero(info['desvio_padrao'], 2)} p.p.", None),
+        ("Consenso parado, em média",
+         f"{formato.numero(info['dias_sem_mudanca_medio'], 0)} dias", None),
+    ])
 
-    st.altair_chart(
+    componentes.figura(
         graficos.historico_de_surpresa(recorte, desvio=float(info["desvio_padrao"])),
-        width="stretch",
-    )
-    st.caption(
-        "A faixa cinza é ±1 desvio padrão. **Barra vermelha** é realizado acima "
-        "do consenso; **azul**, abaixo."
+        "Surpresa de cada divulgação, em pontos percentuais. A faixa cinza é "
+        "±1 desvio padrão do próprio par; barra vermelha é realizado acima do "
+        "consenso, azul abaixo.",
     )
 
-    st.altair_chart(graficos.realizado_contra_consenso(recorte), width="stretch")
-    st.caption(
-        "O consenso usado é a última apuração do Focus **estritamente anterior** "
-        "à divulgação: uma apuração feita no próprio dia não estava disponível "
-        "para quem operava antes de o número sair."
+    componentes.figura(
+        graficos.realizado_contra_consenso(recorte),
+        "O realizado contra o consenso que o projetava. O consenso é a última "
+        "apuração do Focus **estritamente anterior** à divulgação: uma apuração "
+        "feita no próprio dia não estava disponível para quem operava antes de "
+        "o número sair.",
     )
 
     with st.expander(f"As {len(recorte)} divulgações medidas"):
@@ -130,7 +127,7 @@ def _detalhe(tabela: pd.DataFrame, por_par: pd.DataFrame) -> None:
 
 
 def _vies(por_par: pd.DataFrame) -> None:
-    st.subheader("O teste da construção, e o viés que ele expõe")
+    componentes.secao("O teste da construção, e o viés que ele expõe")
 
     st.dataframe(
         pd.DataFrame({

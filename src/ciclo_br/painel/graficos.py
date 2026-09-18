@@ -27,35 +27,18 @@ from __future__ import annotations
 import altair as alt
 import pandas as pd
 
-# Cores dos quadrantes. Verde e vermelho nos extremos (Expansão e Estagflação),
-# âmbar e azul nos estados mistos — a leitura de "bom, ruim, morno" sai antes
-# da legenda.
-PALETA = {
-    "Expansão": "#2a9d8f",
-    "Aquecimento": "#e9c46a",
-    "Estagflação": "#c1444f",
-    "Desaceleração": "#4a6fa5",
-}
+from .tema import COR_CORTE, COR_RECESSAO, ORDEM, PALETA, PALETA_FORTE, TINTA
+from .tema import escala_quadrante as _escala_quadrante
 
-# As mesmas quatro cores escurecidas até terem contraste sobre fundo claro.
-# Cor de área e cor de texto não são a mesma coisa: o âmbar do quadrante lê bem
-# como faixa e some como letra, e era ele que fazia o nome "Aquecimento"
-# desaparecer contra o branco.
-PALETA_TEXTO = {
-    "Expansão": "#1c6f66",
-    "Aquecimento": "#8a6a12",
-    "Estagflação": "#8f2d36",
-    "Desaceleração": "#35507a",
-}
-
-ORDEM = ("Expansão", "Aquecimento", "Desaceleração", "Estagflação")
-
-COR_RECESSAO = "#6b7280"
-COR_CORTE = "#9aa0a6"
-
-
-def _escala_quadrante() -> alt.Scale:
-    return alt.Scale(domain=list(ORDEM), range=[PALETA[q] for q in ORDEM])
+# Reexportados para quem já importava daqui: a cor passou a ser declarada em
+# `tema.py`, junto com a derivação e o teste de contraste que a sustenta, mas
+# este continua sendo o módulo onde o desenho mora.
+__all__ = [
+    "COR_CORTE", "COR_RECESSAO", "ORDEM", "PALETA", "PALETA_FORTE",
+    "eixo_no_tempo", "faixa_de_quadrantes", "historia_do_regime",
+    "historico_de_surpresa", "mapa_de_quadrantes", "realizado_contra_consenso",
+    "recortar", "serie_simples", "varredura",
+]
 
 
 def recortar(recessoes: pd.DataFrame, inicio, fim) -> pd.DataFrame:
@@ -114,7 +97,7 @@ def eixo_no_tempo(
 
     regua = (alt.Axis(format="%Y") if eixo_do_tempo
              else alt.Axis(labels=False, ticks=False, domain=False, title=None))
-    linha = base.mark_line(color="#1f2933", strokeWidth=1.6).encode(
+    linha = base.mark_line(color=TINTA, strokeWidth=1.6).encode(
         x=alt.X("data:T", title=None, axis=regua),
         y=alt.Y(f"{coluna}:Q", title=titulo),
         tooltip=[
@@ -219,7 +202,7 @@ def _cantos(limite_x: list[float], limite_y: list[float],
             "x": _recuado(limite_x, positivo=x, recuo=recuo),
             "y": _recuado(limite_y, positivo=y, recuo=recuo),
             "quadrante": nome,
-            "cor": PALETA_TEXTO[nome],
+            "cor": PALETA_FORTE[nome],
         }
 
     return pd.DataFrame([
@@ -280,6 +263,10 @@ def mapa_de_quadrantes(reg: pd.DataFrame, *, meses: int = 24) -> alt.LayerChart:
         # conciliar com as outras camadas de cor, que é onde o gráfico empilhado
         # deste painel já quebrou uma vez.
         color=alt.Color("cor:N", scale=None, legend=None),
+        # Um tooltip explícito e útil. Sem ele, passar o mouse sobre a região
+        # despeja os campos crus da tabela — `x2 0`, `cor #005a9d` — que é
+        # vazamento de estrutura interna na cara do leitor.
+        tooltip=[alt.Tooltip("quadrante:N", title="Quadrante")],
     )
 
     nomes = alt.Chart(_cantos(limite_x, limite_y)).mark_text(
@@ -296,7 +283,7 @@ def mapa_de_quadrantes(reg: pd.DataFrame, *, meses: int = 24) -> alt.LayerChart:
         color=COR_CORTE, strokeDash=[4, 4]).encode(x=alt.X("v:Q"))
 
     caminho = alt.Chart(recorte).mark_line(
-        color="#1f2933", strokeWidth=1, opacity=0.45,
+        color=TINTA, strokeWidth=1, opacity=0.45,
     ).encode(
         x=alt.X("distancia_crescimento:Q"),
         y=alt.Y("distancia_inflacao:Q"),
@@ -339,11 +326,11 @@ def mapa_de_quadrantes(reg: pd.DataFrame, *, meses: int = 24) -> alt.LayerChart:
     )
 
     destaque = alt.Chart(ultimo).mark_point(
-        size=260, filled=False, strokeWidth=2, color="#1f2933",
+        size=260, filled=False, strokeWidth=2, color=TINTA,
     ).encode(x=alt.X("distancia_crescimento:Q"), y=alt.Y("distancia_inflacao:Q"))
 
     etiqueta = alt.Chart(ultimo).mark_text(
-        dx=12, dy=-12, fontSize=12, fontWeight="bold", color="#1f2933", align="left",
+        dx=12, dy=-12, fontSize=12, fontWeight="bold", color=TINTA, align="left",
     ).encode(
         x=alt.X("distancia_crescimento:Q"),
         y=alt.Y("distancia_inflacao:Q"),
@@ -367,7 +354,7 @@ def historico_de_surpresa(tabela: pd.DataFrame, *, desvio: float) -> alt.LayerCh
         y=alt.Y("baixo:Q"), y2=alt.Y2("alto:Q"))
 
     zero = alt.Chart(pd.DataFrame({"v": [0.0]})).mark_rule(
-        color="#1f2933", strokeWidth=1).encode(y=alt.Y("v:Q"))
+        color=TINTA, strokeWidth=1).encode(y=alt.Y("v:Q"))
 
     barras = alt.Chart(tabela).mark_bar(size=6).encode(
         x=alt.X("data_divulgacao:T", title=None),
@@ -401,7 +388,7 @@ def realizado_contra_consenso(tabela: pd.DataFrame) -> alt.LayerChart:
             color=alt.Color(
                 "serie:N",
                 scale=alt.Scale(domain=["realizado", "consenso"],
-                                range=["#1f2933", PALETA["Aquecimento"]]),
+                                range=[TINTA, PALETA["Aquecimento"]]),
                 legend=alt.Legend(title=None, orient="bottom"),
             ),
             tooltip=[
@@ -417,7 +404,7 @@ def serie_simples(
     serie: pd.DataFrame, *, titulo: str, recessoes: pd.DataFrame | None = None
 ) -> alt.LayerChart:
     """Uma série qualquer no tempo, com as recessões oficiais ao fundo."""
-    linha = alt.Chart(serie).mark_line(color="#1f2933", strokeWidth=1.6).encode(
+    linha = alt.Chart(serie).mark_line(color=TINTA, strokeWidth=1.6).encode(
         x=alt.X("data_referencia:T", title=None),
         y=alt.Y("valor:Q", title=titulo, scale=alt.Scale(zero=False)),
         tooltip=[
@@ -472,7 +459,7 @@ def varredura(resumo: pd.DataFrame, *, vigente: dict) -> alt.LayerChart:
     )
 
     escolhida = alt.Chart(tabela[tabela["escolhida"]]).mark_point(
-        size=420, filled=False, strokeWidth=2.5, color="#1f2933",
+        size=420, filled=False, strokeWidth=2.5, color=TINTA,
     ).encode(x=alt.X("percentual_ligado:Q"), y=alt.Y("defasagem_pico_mediana:Q"))
 
     return alt.layer(pontos, escolhida).properties(height=380)

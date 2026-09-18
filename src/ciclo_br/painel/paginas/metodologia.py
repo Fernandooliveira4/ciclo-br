@@ -29,12 +29,11 @@ def renderizar() -> None:
     )
 
     _procedencia()
-    st.divider()
     _documento()
 
 
 def _procedencia() -> None:
-    st.subheader("De onde vem o que está na tela")
+    componentes.secao("De onde vem o que está na tela")
     proc = dados.procedencia()
 
     st.dataframe(
@@ -82,6 +81,7 @@ def _procedencia() -> None:
 
 
 def _documento() -> None:
+    componentes.secao()
     texto = dados.metodologia()
     # A primeira linha é o título H1 do documento, que repetiria o título da
     # página logo acima.

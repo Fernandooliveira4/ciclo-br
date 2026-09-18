@@ -91,21 +91,24 @@ def _bruta() -> None:
                 f"{serie_id} --backfill`.")
         return
 
-    a, b, c, d = st.columns(4)
-    a.metric("Observações", f"{len(observacoes)}")
-    b.metric("Primeira referência",
-             formato.mes_curto(observacoes["data_referencia"].iloc[0]))
-    c.metric("Última referência",
-             formato.mes_curto(observacoes["data_referencia"].iloc[-1]))
-    d.metric("Coletada pela última vez",
-             formato.dia(observacoes["data_coleta"].max()))
+    componentes.numeros([
+        ("Observações", f"{len(observacoes)}", None),
+        ("Primeira referência",
+         formato.mes_curto(observacoes["data_referencia"].iloc[0]), None),
+        ("Última referência",
+         formato.mes_curto(observacoes["data_referencia"].iloc[-1]), None),
+        ("Coletada pela última vez",
+         formato.dia(observacoes["data_coleta"].max()), None),
+    ])
 
-    st.altair_chart(
+    componentes.figura(
         graficos.serie_simples(
             observacoes, titulo=ficha.unidade,
             recessoes=dados.recessoes() if ficha.periodicidade != "diaria" else None,
         ),
-        width="stretch",
+        f"{ficha.nome}, série vigente como está gravada em "
+        f"`data/raw/{serie_id}.parquet`. Unidade: {ficha.unidade}.",
+        numerar=False,
     )
 
     st.markdown(
@@ -139,16 +142,19 @@ def _derivada() -> None:
         f"**Origem:** `{receita['origem']}` → **{receita['descricao']}** "
         f"({receita['unidade']})"
     )
-    st.altair_chart(
+    componentes.figura(
         graficos.serie_simples(serie, titulo=receita["unidade"],
                                recessoes=dados.recessoes()),
-        width="stretch",
+        f"{receita['descricao']} ({receita['unidade']}), calculada a partir de "
+        f"`{receita['origem']}`.",
+        numerar=False,
     )
 
-    a, b, c = st.columns(3)
-    a.metric("Observações", f"{len(serie)}")
-    b.metric("De", formato.mes_curto(serie["data_referencia"].iloc[0]))
-    c.metric("Até", formato.mes_curto(serie["data_referencia"].iloc[-1]))
+    componentes.numeros([
+        ("Observações", f"{len(serie)}", None),
+        ("De", formato.mes_curto(serie["data_referencia"].iloc[0]), None),
+        ("Até", formato.mes_curto(serie["data_referencia"].iloc[-1]), None),
+    ])
 
     st.caption(
         "As séries que este projeto dessazonaliza são tratadas em **janela "
@@ -201,7 +207,7 @@ def _revisoes() -> None:
         return
 
     rotulo = "apurações posteriores" if consenso else "revisões"
-    st.metric(f"Total de {rotulo}", f"{len(alteracoes)}")
+    componentes.numeros([(f"Total de {rotulo}", f"{len(alteracoes)}", None)])
     st.dataframe(
         pd.DataFrame({
             "Referência": [formato.mes_curto(d) for d in alteracoes["data_referencia"]],

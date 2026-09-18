@@ -699,6 +699,68 @@ Isso não é simplificação do conteúdo, e sim ordenação por audiência: nen
 ressalva foi removida da tela, nenhuma delas mudou de lugar para fora do alcance
 do leitor. O que mudou foi a ordem em que ele encontra as coisas.
 
+### 8.6 A linguagem visual, e a paleta que reprovava
+
+O painel é desenhado como **documento de pesquisa**, e não como produto. A
+escolha responde ao argumento do projeto: ele mede o próprio atraso, declara o
+que não consegue afirmar e versiona a medição que derrubou a primeira versão do
+classificador. Uma linguagem de relatório concorda com esse argumento; uma
+linguagem de produto trabalha contra ele, porque produto promete certeza. Na
+prática isso é papel e tinta em vez de branco e preto, serifa de leitura no
+texto corrente, algarismo tabular em todo número alinhado, raio de borda zero, e
+gráfico tratado como figura numerada com legenda embaixo — de modo que o texto
+ao lado possa citar a figura pelo número em vez de dizer "o gráfico acima".
+
+Duas consequências têm conteúdo além do gosto.
+
+**A primeira: `st.metric` saiu.** O componente padrão embrulha cada número num
+cartão e esconde a explicação atrás de uma bolinha de ajuda. Num relatório a
+nota de rodapé é visível — é ela que separa um número medido de um número
+afirmado —, então os quatro números da página de Regime passaram a ser uma linha
+tipografada separada por filete, com a definição de cada eixo escrita na tela em
+vez de sob um clique.
+
+**A segunda: a paleta anterior reprovava em teste de acessibilidade, e o código
+já sabia disso sem ter nomeado.** Submetida aos portões de paleta categórica —
+faixa de luminosidade, piso de croma, separação sob daltonismo em todos os pares
+e contraste contra o fundo —, ela falhava em dois:
+
+| Verificação | Resultado |
+|---|---|
+| Faixa de luminosidade | **reprova**: âmbar `#e9c46a` com L 0,834, fora da banda |
+| Piso de croma | **reprova**: azul `#4a6fa5` com C 0,095, lê como cinza |
+| Contraste contra o fundo | **alerta**: âmbar com 1,63:1 |
+| Separação sob daltonismo | passa, pior par ΔE 9,4 |
+
+O sintoma era conhecido havia meses e tinha ganhado um remendo em vez de um
+diagnóstico: como o âmbar sumia quando usado como letra, existia uma segunda
+paleta, escolhida no olho, só para texto. A paleta atual foi obtida por busca
+sob os mesmos portões, com os matizes presos à semântica de cada quadrante, e
+passa em todos eles com pior par ΔE 13,0.
+
+Restaram **duas tintas por quadrante**, agora por um motivo derivado e não por
+remendo. Cor de área e cor de letra não podem ser o mesmo valor: é aritmética de
+contraste. O tom de preenchimento pinta região e marca de gráfico, onde 3:1
+basta porque o nome do quadrante está escrito por cima; o tom forte é o mesmo
+matiz escurecido até servir **ao mesmo tempo** como letra sobre o papel e como
+fundo de pílula sob letra branca — escurecer melhora as duas coisas, então um
+valor resolve os dois papéis. No azul e no vermelho os dois tons coincidem,
+porque eles já nascem escuros o bastante.
+
+O verde e o vermelho ficaram em luminosidades deliberadamente diferentes. São os
+dois estados mais opostos do classificador e o par mais difícil sob
+deuteranopia, que é a confusão clássica entre vermelho e verde; o que os separa
+não é o matiz, é a folga de luminosidade. Por isso o vermelho de Estagflação é
+mais fechado do que um vermelho de alerta seria.
+
+A cor é declarada em `painel/tema.py`, junto com a derivação, e copiada em
+`.streamlit/config.toml`, que o Streamlit lê e que não tem como importar Python.
+Três testes sustentam o arranjo: um confere o contraste de cada tom nos dois
+papéis que ele tem, outro confere a rampa de neutros, e o terceiro confere que
+os dois arquivos dizem a mesma coisa — duas cópias divergem na primeira pressa,
+e a divergência seria invisível justamente porque cada uma continuaria coerente
+consigo mesma.
+
 ---
 
 ## 9. O briefing

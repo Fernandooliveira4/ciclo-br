@@ -62,7 +62,6 @@ def _publicados() -> None:
 
     st.markdown(publicacao.renderizar(registro))
 
-    st.divider()
     _quem_escreveu(registros)
 
 
@@ -72,7 +71,7 @@ def _resumo_divulgacoes(registro: dict) -> str:
 
 
 def _quem_escreveu(registros: list[dict]) -> None:
-    st.subheader("Quem escreveu cada briefing")
+    componentes.secao("Quem escreveu cada briefing")
     st.dataframe(
         pd.DataFrame([
             {

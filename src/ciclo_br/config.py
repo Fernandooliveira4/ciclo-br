@@ -35,6 +35,11 @@ PAPEIS = {"eixo_crescimento", "eixo_inflacao", "contexto", "auditoria", "surpres
 AJUSTES = {"origem", "proprio", "nao_aplicavel"}
 PERIODICIDADES = {"diaria", "mensal", "trimestral"}
 
+# Validado aqui, e não só no roteador da ingestão, porque lá a falha é silenciosa:
+# `run.ingerir` captura a exceção de cada série, registra e segue para a próxima.
+# Uma fonte digitada errada sumiria do pipeline sem derrubar nada.
+FONTES = {"sgs", "focus", "ibge"}
+
 
 class FichaInvalida(ValueError):
     """Uma ficha de série está incompleta ou inconsistente."""
@@ -54,6 +59,10 @@ class Serie:
     recurso: str | None = None
     indicador: str | None = None
     base_calculo: int | None = None
+    tabela: int | None = None
+    variavel: int | None = None
+    classificacao: int | None = None
+    categoria: int | None = None
     inicio: str | None = None
     transformacao: str | None = None
     status: str | None = None
@@ -64,6 +73,19 @@ class Serie:
     def implementada(self) -> bool:
         """Séries marcadas como planejadas ainda não têm cliente de ingestão."""
         return self.status not in {"planejado_s2"}
+
+    @property
+    def referencia_na_fonte(self) -> str:
+        """Como a série é identificada na fonte, seja ela qual for.
+
+        Existe porque `codigo or indicador` estava escrito em três lugares — o
+        log da ingestão, a coluna do catálogo e a ficha na página de Séries — e
+        nenhum dos três sabia o que fazer com uma fonte que identifica a série
+        por uma combinação de números em vez de um só.
+        """
+        if self.fonte == "ibge":
+            return f"{self.tabela}/{self.variavel}/{self.classificacao}[{self.categoria}]"
+        return str(self.codigo or self.indicador or "")
 
 
 _CAMPOS = {f for f in Serie.__dataclass_fields__ if f != "extra"}
@@ -87,10 +109,22 @@ def _validar(bruto: dict[str, Any]) -> None:
             f"série {sid}: periodicidade {bruto['periodicidade']!r} "
             f"fora de {sorted(PERIODICIDADES)}"
         )
+    if bruto["fonte"] not in FONTES:
+        raise FichaInvalida(f"série {sid}: fonte {bruto['fonte']!r} fora de {sorted(FONTES)}")
     if bruto["fonte"] == "sgs" and not bruto.get("codigo"):
         raise FichaInvalida(f"série {sid}: fonte sgs exige codigo")
     if bruto["fonte"] == "focus" and not (bruto.get("recurso") and bruto.get("indicador")):
         raise FichaInvalida(f"série {sid}: fonte focus exige recurso e indicador")
+    if bruto["fonte"] == "ibge":
+        faltando_ibge = [
+            c for c in ("tabela", "variavel", "classificacao", "categoria")
+            if not bruto.get(c)
+        ]
+        if faltando_ibge:
+            raise FichaInvalida(
+                f"série {sid}: fonte ibge exige {faltando_ibge} — sem eles não há "
+                f"como identificar a série na tabela de agregados"
+            )
 
 
 def carregar(caminho: Path | None = None) -> dict[str, Serie]:

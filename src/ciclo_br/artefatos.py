@@ -286,7 +286,7 @@ def fichas() -> pd.DataFrame:
             "bloco": serie.bloco,
             "papel": serie.papel,
             "fonte": serie.fonte,
-            "codigo": str(serie.codigo or serie.indicador or ""),
+            "codigo": serie.referencia_na_fonte,
             "unidade": serie.unidade,
             "periodicidade": serie.periodicidade,
             "ajuste_sazonal": serie.ajuste_sazonal,

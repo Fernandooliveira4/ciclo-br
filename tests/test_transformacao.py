@@ -232,3 +232,91 @@ def test_tolerancia_e_maior_que_a_granularidade_da_gravacao():
     """
     granularidade = 10 ** -transformacao.CASAS_DECIMAIS
     assert transformacao.TOLERANCIA >= 10 * granularidade
+
+
+# ------------------------------------------------- razão de somas móveis
+
+def serie_trimestral(n=40, inicio="2000-01-01", base=100.0, amplitude=10.0):
+    idx = pd.date_range(inicio, periods=n, freq="QS")
+    trimestre = np.arange(n) % 4
+    return pd.Series(base + amplitude * np.sin(2 * np.pi * trimestre / 4), index=idx)
+
+
+def test_razao_de_somas_moveis_nao_usa_o_futuro():
+    """Espelha test_ajuste_recursivo_nao_usa_o_futuro, e pela mesma razão.
+
+    O valor de um trimestre tem que ser idêntico quer a série termine ali, quer
+    ela siga por mais dez anos. A janela móvel é retrospectiva por construção, e
+    este teste é o que impede alguém de "melhorar" isso com um center=True.
+    """
+    num, den = serie_trimestral(40), serie_trimestral(40, base=500.0, amplitude=3.0)
+    completa = transformacao.razao_de_somas_moveis(num, den)
+    curta = transformacao.razao_de_somas_moveis(num.iloc[:30], den.iloc[:30])
+
+    comum = curta.dropna().index
+    pd.testing.assert_series_equal(completa.loc[comum], curta.loc[comum], check_names=False)
+
+
+def test_razao_de_somas_moveis_espera_quatro_trimestres_antes_do_primeiro_valor():
+    idx = pd.date_range("2020-01-01", periods=5, freq="QS")
+    num = pd.Series([1.0, 2.0, 3.0, 4.0, 5.0], index=idx)
+    den = pd.Series([10.0] * 5, index=idx)
+
+    razao = transformacao.razao_de_somas_moveis(num, den)
+
+    assert razao.iloc[:3].isna().all()
+    assert razao.iloc[3] == pytest.approx((1 + 2 + 3 + 4) / 40 * 100)
+    assert razao.iloc[4] == pytest.approx((2 + 3 + 4 + 5) / 40 * 100)
+
+
+def test_razao_de_somas_moveis_e_a_razao_das_somas_e_nao_a_media_das_razoes():
+    """As duas contas divergem quando numerador e denominador têm sazonalidades
+    diferentes, e só uma delas é a taxa de investimento do IBGE."""
+    idx = pd.date_range("2020-01-01", periods=4, freq="QS")
+    num = pd.Series([1.0, 1.0, 1.0, 10.0], index=idx)
+    den = pd.Series([10.0, 10.0, 10.0, 1.0], index=idx)
+
+    razao = transformacao.razao_de_somas_moveis(num, den)
+
+    assert razao.iloc[3] == pytest.approx(13 / 31 * 100)
+    media_das_razoes = (num / den * 100).mean()
+    assert razao.iloc[3] != pytest.approx(media_das_razoes)
+
+
+def test_razao_de_somas_moveis_alinha_pelo_trimestre_e_nao_pela_posicao():
+    """Trimestre presente em só uma das séries vira NaN, e não razão calculada
+    contra o vizinho errado — que passaria despercebida por ser plausível."""
+    num = pd.Series([1.0] * 8, index=pd.date_range("2020-01-01", periods=8, freq="QS"))
+    den = pd.Series([10.0] * 8, index=pd.date_range("2020-04-01", periods=8, freq="QS"))
+
+    razao = transformacao.razao_de_somas_moveis(num, den)
+
+    # numerador já tem janela cheia, denominador ainda não
+    assert pd.isna(razao.loc["2020-10-01"])
+    # trimestre que só o denominador cobre
+    assert pd.isna(razao.loc["2022-01-01"])
+    # onde as duas janelas se sobrepõem, a razão sai
+    assert razao.loc["2021-01-01"] == pytest.approx(10.0)
+
+
+def test_as_razoes_do_pib_ficam_na_faixa_plausivel():
+    """Sobre o artefato versionado, e não sobre uma fixture.
+
+    Lê o caminho real de propósito: a fixture autouse deste módulo isola o
+    armazenamento, e o que interessa aqui é o número que o repositório publica.
+    A faixa é larga porque a série é revisada — cravar decimal viraria
+    manutenção a cada divulgação, e a conferência exata mora no campo
+    `verificacao` da ficha. O que esta faixa pega é o que importa: categoria
+    trocada, unidade trocada, ou numerador dividido pelo denominador errado.
+    """
+    from ciclo_br.config import DIR_DERIVADO
+
+    derivado = pd.read_parquet(DIR_DERIVADO / "series.parquet")
+    recentes = derivado[derivado["data_referencia"] >= dt.date(2024, 1, 1)]
+
+    investimento = recentes[recentes["serie_id"] == "taxa_investimento"]["valor"]
+    governo = recentes[recentes["serie_id"] == "consumo_governo_pib"]["valor"]
+
+    assert not investimento.empty and not governo.empty
+    assert investimento.between(12, 24).all(), "taxa de investimento fora da faixa"
+    assert governo.between(15, 25).all(), "consumo do governo fora da faixa"

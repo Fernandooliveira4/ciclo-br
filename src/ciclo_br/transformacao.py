@@ -136,6 +136,31 @@ def variacao_interanual(nivel: pd.Series, *, periodos_por_ano: int) -> pd.Series
     return (nivel / nivel.shift(periodos_por_ano) - 1) * 100
 
 
+def razao_de_somas_moveis(
+    numerador: pd.Series, denominador: pd.Series, *, periodos: int = 4
+) -> pd.Series:
+    """Razão entre somas móveis de N períodos, em %.
+
+    A soma móvel de quatro trimestres, e não a razão do trimestre isolado, por
+    três motivos. Numerador e denominador ficam a preços correntes do mesmo
+    período, então a inflação cancela dentro da razão e não há deflator a
+    escolher nem a justificar. A sazonalidade some sem dessazonalizador, o que
+    importa aqui porque o STL deste módulo exige 36 observações antes do
+    primeiro valor, e numa série trimestral isso custaria nove anos. E é a
+    definição que o próprio IBGE usa para taxa de investimento.
+
+    A janela é retrospectiva: o valor de um trimestre usa ele e os três
+    anteriores, nunca o seguinte. Os três primeiros pontos saem NaN, e é assim
+    que tem que ser — a alternativa seria completar a janela com dados de
+    frente, que é o look-ahead que o resto do módulo existe para evitar.
+
+    Alinha pelo índice, e não pela posição: trimestre presente em só uma das
+    séries vira NaN, em vez de razão calculada contra o vizinho errado.
+    """
+    return (numerador.rolling(periodos).sum()
+            / denominador.rolling(periodos).sum()) * 100
+
+
 def _serie_trimestral(serie_id: str) -> pd.Series:
     """Série trimestral vigente, indexada pelo primeiro mês de cada trimestre."""
     vigente = storage.ler_vigente(serie_id)
@@ -191,6 +216,20 @@ RECEITAS: dict[str, dict] = {
                      "anualizado — checagem independente do eixo de crescimento",
         "unidade": "% anualizado",
     },
+    "taxa_investimento": {
+        "origem": "fbcf_corrente / pib_corrente",
+        "papel": "contexto",
+        "descricao": "Formação bruta de capital fixo sobre o PIB, as duas a preços "
+                     "correntes, em soma móvel de quatro trimestres",
+        "unidade": "% do PIB",
+    },
+    "consumo_governo_pib": {
+        "origem": "consumo_governo_corrente / pib_corrente",
+        "papel": "contexto",
+        "descricao": "Despesa de consumo da administração pública sobre o PIB, as "
+                     "duas a preços correntes, em soma móvel de quatro trimestres",
+        "unidade": "% do PIB",
+    },
 }
 
 
@@ -199,6 +238,7 @@ def construir() -> pd.DataFrame:
     nucleo = _serie_mensal("ipca_nucleo_ma_suav")
     nucleo_sa = dessazonalizar_recursivo(nucleo)
     desocupacao_sa = dessazonalizar_recursivo(_serie_mensal("desocupacao"))
+    pib_corrente = _serie_trimestral("pib_corrente")
 
     resultados = {
         "eixo_crescimento": momentum_3m3m(_serie_mensal("ibcbr_sa")),
@@ -207,6 +247,13 @@ def construir() -> pd.DataFrame:
         "desocupacao_sa": desocupacao_sa,
         "pim_momentum": momentum_3m3m(_serie_mensal("pim_sa")),
         "pib_yoy": variacao_interanual(_serie_trimestral("pib"), periodos_por_ano=4),
+        # No fim do dicionário de propósito: `construir` concatena na ordem de
+        # iteração e `equivalente` compara as chaves posição a posição, então
+        # inserir no meio reordenaria o parquet inteiro e engordaria o diff.
+        "taxa_investimento": razao_de_somas_moveis(
+            _serie_trimestral("fbcf_corrente"), pib_corrente),
+        "consumo_governo_pib": razao_de_somas_moveis(
+            _serie_trimestral("consumo_governo_corrente"), pib_corrente),
     }
 
     partes = []

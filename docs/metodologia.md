@@ -260,6 +260,94 @@ e depois crescimento com inflação alta até o fim de 2022.
 
 ---
 
+## 4d. Investimento e consumo do governo como % do PIB
+
+**O que se mede.** Duas razões, as duas em soma móvel de quatro trimestres e as
+duas a preços correntes:
+
+- **taxa de investimento** = formação bruta de capital fixo ÷ PIB
+- **consumo do governo** = despesa de consumo da administração pública ÷ PIB
+
+**Fonte, e por que não o SGS.** IBGE, Contas Nacionais Trimestrais, tabela 1846
+(valores a preços correntes, em R$ milhões), variável 585, classificação 11255,
+categorias 93406 (FBCF), 93405 (administração pública) e 90707 (PIB a preços de
+mercado). A cobertura vai de 1996Q1 em diante.
+
+O SGS foi testado primeiro e descartado com motivo: a família 22xxx das Contas
+Nacionais publica apenas índice de volume, e as séries a preços correntes foram
+descontinuadas em 2022. Sem preços correntes não existe "% do PIB", que é a
+unidade da taxa de investimento. É por isso que o projeto passou a ter uma
+terceira fonte de ingestão.
+
+**Por que soma móvel de quatro trimestres, e não a razão do trimestre isolado.**
+Três motivos, em ordem de força:
+
+1. Numerador e denominador ficam a preços correntes do **mesmo período**, então a
+   inflação cancela dentro da razão. Não há deflator escolhido por ninguém, e
+   portanto não há escolha de deflator a justificar.
+2. A sazonalidade some sem dessazonalizador. Isso importa porque o STL usado na
+   seção 4b exige 36 observações antes do primeiro valor, o que numa série
+   trimestral custaria nove anos de amostra.
+3. É a definição que o próprio IBGE usa para taxa de investimento anual.
+
+A janela é **retrospectiva**: o valor de um trimestre usa ele e os três
+anteriores, nunca o seguinte. A promessa da seção 4b continua de pé, e há teste
+espelhando o do ajuste sazonal recursivo — truncar a série não pode mudar
+nenhum valor já calculado.
+
+**Conferência.** Feita em 18/09/2026 contra a divulgação do 2º trimestre de 2026:
+PIB R$ 3.425.728 milhões, FBCF R$ 552.092 milhões e consumo da administração
+pública R$ 667.666 milhões, o que dá 16,1% e 19,5% do PIB no trimestre isolado —
+os números que o IBGE publica. Em soma móvel de quatro trimestres, 16,46% e
+19,59%.
+
+### 4d.1 O que a comparação permite concluir, e o que não permite
+
+Esta subseção existe porque o gráfico correspondente produz, sozinho, uma
+conclusão causal na cabeça de quem olha: a de que gasto público desloca
+investimento privado. A correlação dos níveis das duas séries é de **−0,48**, o
+que reforça a impressão. Ela não se sustenta, e os motivos são estes:
+
+- **Denominador comum.** As duas razões dividem o mesmo PIB. Quando o PIB cai,
+  ambas sobem sem que nenhuma decisão tenha sido tomada. O mínimo histórico do
+  investimento (14,56% em 2017Q4) e o máximo do consumo do governo (20,50% em
+  2017Q2) caem os dois na esteira da recessão de 2015-16 — é efeito de
+  denominador e de ciclo comum antes de ser qualquer outra coisa.
+
+- **Assimetria de amplitude.** Em trinta anos a taxa de investimento andou 6,4
+  pontos do PIB (14,56% a 20,96%) e o consumo do governo andou 2,2 pontos (18,34%
+  a 20,50%), passando a maior parte do tempo numa faixa estreita. Uma série é
+  cíclica, a outra é quase um platô. Qualquer tese de que uma empurrou a outra
+  precisa explicar por que a série supostamente empurradora mal se mexe.
+
+- **Crowding out é uma tese sobre canal.** Juro real, crédito, câmbio,
+  expectativa. Testá-la exige identificação, e este projeto não a tem — pela
+  mesma razão que não estima um modelo de regime na seção 7.
+
+- **"Consumo do governo" não é gasto público.** A série cobre remuneração de
+  servidores e consumo intermediário. Ficam de fora as transferências
+  (Previdência, programas sociais), os juros da dívida e o investimento público.
+  Quem lê essa linha como "tamanho do Estado" está vendo talvez metade dele.
+
+- **O investimento público está na outra linha.** A FBCF soma público e privado,
+  então obra do governo sobe a linha do investimento, não a do governo. Isso
+  desfaz a leitura de "uma cor contra a outra".
+
+- **Preço relativo aparece como mudança de taxa.** A contrapartida de usar preços
+  correntes: quando bem de capital encarece mais que o resto do PIB, a taxa de
+  investimento sobe sem que um tijolo a mais tenha sido assentado. Parte da queda
+  brasileira desde 2014 é preço relativo, não volume.
+
+- **A soma móvel atrasa a virada** em dois a três trimestres em relação ao dado
+  bruto, que é o preço de tirar a sazonalidade por média.
+
+As três séries entram no projeto com `papel: contexto`. Nenhuma delas alimenta o
+classificador de regime, e a camada de regime é indiferente a elas — o
+classificador seleciona apenas as duas colunas de eixo da camada derivada, e há
+teste travando essa propriedade.
+
+---
+
 ## 5. Medida de surpresa
 
 **Definição.** Surpresa = valor realizado − mediana do Focus vigente na véspera da
@@ -561,9 +649,9 @@ repositório.
 
 ## 8. O painel
 
-Cinco páginas: **Regime**, **Séries**, **Surpresas**, **Validação** e
-**Metodologia**. A última não é apêndice — é o motivo de as outras quatro terem
-o direito de existir. Um painel macro que mostra um classificador sem mostrar
+Sete páginas: **Regime**, **Briefing**, **Séries**, **Investimento**,
+**Surpresas**, **Validação** e **Metodologia**. A última não é apêndice — é o
+motivo de as outras seis terem o direito de existir. Um painel macro que mostra um classificador sem mostrar
 contra o que ele foi validado, com que atraso ele responde e o que ele não
 consegue afirmar está vendendo confiança que não construiu.
 
@@ -907,3 +995,7 @@ sido publicado naquela data.
 | 2026-09-13 | As versões fixas da CI são as mesmas que o Streamlit Cloud instala | enquanto a CI resolvia faixas e o Cloud lia `requirements.txt`, "CI verde" não dizia nada sobre o app publicado |
 | 2026-09-13 | SDK da Anthropic não é instalado enquanto não houver chave | dependência num job privilegiado para um caminho de código que `disponivel()` nunca alcança |
 | 2026-09-13 | `pilula()` escapa o nome antes de montar HTML | a garantia de que o valor é um de quatro literais mora no classificador, e quem escreve o HTML não tem como verificá-la |
+| 2026-09-18 | Contas Nacionais a preços correntes vêm do IBGE, não do SGS | a família 22xxx do SGS só tem índice de volume e as séries correntes pararam em 2022; sem preços correntes não existe "% do PIB" (seção 4d) |
+| 2026-09-18 | Taxa de investimento em soma móvel de 4 trimestres, não no trimestre isolado | numerador e denominador do mesmo período, a inflação cancela na razão e a sazonalidade some sem dessazonalizador (seção 4d) |
+| 2026-09-18 | A página de Investimento declara o que o gráfico não prova, antes de o leitor concluir | duas linhas com correlação de −0,48 produzem sozinhas uma leitura de crowding out que o dado não sustenta (seção 4d.1) |
+| 2026-09-18 | Alvos da ingestão padrão derivados do catálogo, não escritos à mão | com a lista fixa, fonte nova passava nos oito portões e sumia do agendamento diário; o sintoma aparecia meses depois como frescor vermelho |

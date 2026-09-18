@@ -27,8 +27,8 @@ from ciclo_br import artefatos as dados
 from ciclo_br import formato
 from ciclo_br.painel import graficos
 
-PAGINAS = ("regime", "briefing", "series", "surpresas", "validacao",
-           "metodologia")
+PAGINAS = ("regime", "briefing", "series", "investimento", "surpresas",
+           "validacao", "metodologia")
 
 DIR_PAINEL = Path(graficos.__file__).parent
 
@@ -578,3 +578,74 @@ def test_o_painel_nao_tem_tema_escuro():
     assert [c.lower() for c in escuro["chartCategoricalColors"]] == [
         tema.PALETA[q] for q in tema.ORDEM
     ]
+
+
+# ------------------------------------------- gráfico de séries comparadas
+
+def tabela_comparada():
+    from ciclo_br.painel.paginas import investimento
+    return investimento._tabela()
+
+
+def test_as_duas_razoes_dividem_o_mesmo_eixo():
+    """Eixo único aqui é o oposto da escolha de `historia_do_regime`, e é a
+    escolha certa: são percentuais do mesmo denominador, medidos no mesmo
+    trimestre, e a comparação de nível entre eles é o que o gráfico existe para
+    dar. Empilhar destruiria isso — e juntar os eixos de regime destruiria o
+    outro. A regra é comensurabilidade, não um número fixo de eixos."""
+    especificacao = graficos.series_comparadas(
+        tabela_comparada(), titulo="% do PIB", recessoes=dados.recessoes(),
+        cores=graficos.CORES_INVESTIMENTO,
+    ).to_dict()
+
+    assert "vconcat" not in especificacao
+    assert "hconcat" not in especificacao
+    campos_y = {
+        camada["encoding"]["y"]["field"]
+        for camada in especificacao["layer"]
+        if "y" in camada.get("encoding", {})
+    }
+    assert campos_y == {"valor"}
+
+
+def test_a_sombra_de_recessao_fica_atras_das_linhas():
+    """Em Altair a primeira camada fica atrás. Invertida, a faixa cinza cobriria
+    as linhas em vez de emoldurá-las."""
+    especificacao = graficos.series_comparadas(
+        tabela_comparada(), titulo="% do PIB", recessoes=dados.recessoes(),
+        cores=graficos.CORES_INVESTIMENTO,
+    ).to_dict()
+
+    camadas = especificacao["layer"]
+    assert camadas[0]["mark"]["type"] == "rect"
+    assert camadas[-1]["mark"]["type"] == "line"
+
+
+def test_o_grafico_comparado_apara_as_recessoes_na_janela_dos_dados():
+    """Sem recortar, o eixo do tempo herda a cronologia do CODACE desde 1980 e
+    trinta anos de dado ficam espremidos na direita."""
+    tabela = tabela_comparada()
+    especificacao = graficos.series_comparadas(
+        tabela, titulo="% do PIB", recessoes=dados.recessoes(),
+    ).to_dict()
+
+    sombra = especificacao["layer"][0]
+    linhas = especificacao["datasets"][sombra["data"]["name"]]
+    inicios = [pd.Timestamp(linha["inicio"]) for linha in linhas]
+    assert min(inicios) >= tabela["data_referencia"].min()
+
+
+def test_as_cores_do_grafico_comparado_saem_da_paleta():
+    """Paleta nova seria dois hexadecimais fora do regime de testes de contraste."""
+    from ciclo_br.painel import tema
+
+    assert set(graficos.CORES_INVESTIMENTO.values()) <= set(tema.PALETA.values())
+    assert len(set(graficos.CORES_INVESTIMENTO.values())) == 2
+
+
+def test_a_pagina_de_investimento_nomeia_as_duas_series():
+    """O rótulo de exibição entra na coluna `serie` antes do desenho: o Vega
+    imprime o domínio cru na legenda, então id de série vazaria para a tela."""
+    tabela = tabela_comparada()
+    assert set(tabela["serie"]) == {"Taxa de investimento", "Consumo do governo"}
+    assert not tabela.empty

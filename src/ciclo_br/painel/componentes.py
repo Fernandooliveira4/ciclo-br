@@ -41,10 +41,18 @@ from . import tema
 
 _CHAVE_FIGURA = "_contador_de_figuras"
 
-# A medida do texto. `layout="wide"` entrega a largura inteira da janela, e uma
-# linha de 180 caracteres é ilegível — o olho perde a volta da linha. O limite
-# abaixo deixa o texto perto de 80 caracteres e ainda dá espaço de sobra para
-# os gráficos e as tabelas largas, que são o motivo de o layout ser wide.
+# A medida do texto, e por que ela não mora no contêiner.
+#
+# A primeira versão travava o contêiner inteiro em 1120px para segurar a linha
+# de texto. O efeito colateral apareceu na captura do README: a tabela de
+# defasagens tem nove colunas, precisa de 1145px, recebia 960px e perdia a
+# última — "Cobertura da recessão", justamente a coluna que a legenda ao lado
+# manda ler. Era regressão de verdade, não da captura: acontecia em qualquer
+# navegador.
+#
+# A trava certa é a de baixo: o contêiner fica largo o bastante para tabela e
+# figura, e quem se limita é o **texto corrente**. É o arranjo de documento —
+# a prosa numa coluna estreita, a figura ocupando a página.
 _ESTILO = f"""
 <style>
 /* As três famílias, carregadas aqui e não pelo `theme.font` do config.toml.
@@ -56,9 +64,18 @@ _ESTILO = f"""
 @import url("{tema.URL_FONTES}");
 
 [data-testid="stMainBlockContainer"] {{
-  max-width: 1120px;
+  max-width: 1320px;
   padding-top: 3.2rem;
   padding-bottom: 5rem;
+}}
+
+/* Só o texto fica na medida. Tabela, gráfico e legenda de figura ficam de
+   fora da trava — cada um tem a largura de que precisa. */
+[data-testid="stMainBlockContainer"] [data-testid="stMarkdownContainer"] > p,
+[data-testid="stMainBlockContainer"] [data-testid="stMarkdownContainer"] > ul,
+[data-testid="stMainBlockContainer"] [data-testid="stMarkdownContainer"] > ol,
+[data-testid="stMainBlockContainer"] [data-testid="stMarkdownContainer"] > blockquote {{
+  max-width: 80ch;
 }}
 
 /* Algarismo tabular em tudo que é número alinhado: sem isto a coluna de

@@ -243,3 +243,41 @@ def test_main_reprova_quando_o_arquivo_esta_desatualizado():
     desatualizado.loc[desatualizado.index[-1], "quadrante"] = "Aquecimento"
     desatualizado.to_parquet(regime.CAMINHO_REGIME, index=False)
     assert regime.main(["--verificar"]) == 1
+
+
+def test_derivada_nova_de_contexto_nao_muda_o_classificador():
+    """O classificador seleciona duas colunas do pivô e descarta todo o resto.
+
+    É essa propriedade que permite a camada derivada crescer — taxa de
+    investimento, consumo do governo, o que vier — sem reclassificar o passado e
+    sem reprovar `ciclo-regime --verificar`. Ela some em silêncio se alguém
+    "melhorar" aquele pivot, e o sintoma seria o regime histórico mudando por
+    causa de uma série que não é eixo de nada.
+    """
+    meses = idx(80)
+    eixos = pd.concat([
+        pd.DataFrame({"serie_id": "eixo_crescimento", "data_referencia": meses.date,
+                      "valor": np.linspace(-5, 5, 80)}),
+        pd.DataFrame({"serie_id": "eixo_inflacao", "data_referencia": meses.date,
+                      "valor": np.linspace(3, 8, 80)}),
+    ], ignore_index=True)
+    eixos["calculado_em"] = pd.Timestamp("2026-01-01", tz="UTC")
+
+    transformacao.salvar(eixos)
+    sem_contexto = regime.construir()
+
+    trimestres = pd.date_range("2010-01-01", periods=27, freq="QS")
+    contexto = pd.DataFrame({
+        "serie_id": "taxa_investimento",
+        "data_referencia": trimestres.date,
+        "valor": np.linspace(14.0, 21.0, 27),
+        "calculado_em": pd.Timestamp("2026-01-01", tz="UTC"),
+    })
+    transformacao.salvar(pd.concat([eixos, contexto], ignore_index=True))
+    com_contexto = regime.construir()
+
+    # `calculado_em` é o carimbo da execução e muda entre as duas chamadas; o
+    # que este teste afirma é que a classificação não muda.
+    carimbo = ["calculado_em"]
+    pd.testing.assert_frame_equal(sem_contexto.drop(columns=carimbo, errors="ignore"),
+                                  com_contexto.drop(columns=carimbo, errors="ignore"))

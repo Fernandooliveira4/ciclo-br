@@ -31,13 +31,9 @@ def renderizar() -> None:
     )
 
     _o_que_se_compara()
-    st.divider()
     _cronologia()
-    st.divider()
     _resultado()
-    st.divider()
     _varredura()
-    st.divider()
     _limites()
 
 
@@ -72,7 +68,7 @@ def _o_que_se_compara() -> None:
 
 
 def _cronologia() -> None:
-    st.subheader("A cronologia oficial, transcrita à mão")
+    componentes.secao("A cronologia oficial, transcrita à mão")
     crono = dados.cronologia()
 
     st.dataframe(
@@ -99,7 +95,7 @@ def _cronologia() -> None:
 
 
 def _resultado() -> None:
-    st.subheader("O resultado, recessão por recessão")
+    componentes.secao("O resultado, recessão por recessão")
     config = dados.configuracao_vigente()
     tabela = dados.defasagens_vigentes()
 
@@ -129,14 +125,18 @@ def _resultado() -> None:
     )
 
     if config:
-        a, b, c = st.columns(3)
-        a.metric("Defasagem mediana no pico",
-                 formato.numero(config["defasagem_pico_mediana"], 1, sinal=True))
-        b.metric("Defasagem mediana no vale",
-                 formato.numero(config["defasagem_vale_mediana"], 1, sinal=True))
-        c.metric("Sinal ligado na janela",
-                 formato.numero(config["fracao_da_janela_com_sinal"] * 100, 0,
-                                sufixo="%"))
+        componentes.numeros([
+            ("Defasagem mediana no pico",
+             formato.numero(config["defasagem_pico_mediana"], 1, sinal=True),
+             "meses após o início da recessão"),
+            ("Defasagem mediana no vale",
+             formato.numero(config["defasagem_vale_mediana"], 1, sinal=True),
+             "meses após o fim da recessão"),
+            ("Sinal ligado na janela",
+             formato.numero(config["fracao_da_janela_com_sinal"] * 100, 0,
+                            sufixo="%"),
+             "sem isto, \"detectou todas\" não informa"),
+        ])
 
     st.caption(
         "**A coluna de cobertura merece leitura.** A recessão de 2008 tem só "
@@ -150,7 +150,7 @@ def _resultado() -> None:
 
 
 def _varredura() -> None:
-    st.subheader("O que cada configuração custa")
+    componentes.secao("O que cada configuração custa")
     st.markdown(
         "Duas escolhas existem no classificador: contra o que o eixo de "
         "crescimento é comparado, e por quantos meses o novo sinal precisa se "
@@ -161,9 +161,12 @@ def _varredura() -> None:
     resumo = dados.validacao_resumo()
     grafico, nota = st.columns([3, 2])
     with grafico:
-        st.altair_chart(
+        componentes.figura(
             graficos.varredura(resumo, vigente=dados.configuracao_vigente()),
-            width="stretch",
+            "As doze combinações de corte e prazo de persistência, medidas com "
+            "a mesma régua. O eixo horizontal é o preço do sinal — quanto da "
+            "janela ele passa ligado; o vertical é o atraso mediano no pico. O "
+            "círculo aberto é a configuração em uso.",
         )
     with nota:
         st.markdown(
@@ -221,7 +224,7 @@ def _varredura() -> None:
 
 
 def _limites() -> None:
-    st.subheader("O que esta validação não prova")
+    componentes.secao("O que esta validação não prova")
     st.markdown(
         "- **A janela tem três recessões.** É a razão de o classificador ser uma "
         "regra de sinal e não um modelo com parâmetros estimados: com três "

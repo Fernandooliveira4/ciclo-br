@@ -1,11 +1,159 @@
-# Tema fixo para que a gravação da demonstração e o que o avaliador vê sejam a
-# mesma tela, independentemente da preferência de tema do navegador.
+# Tema do painel — direção "Relatório".
+#
+# O argumento do projeto é honestidade metodológica: ele mede o próprio atraso,
+# declara o que não consegue afirmar e versiona a medição que derrubou a primeira
+# versão do classificador. Uma linguagem de documento de pesquisa concorda com
+# esse argumento; uma linguagem de produto trabalha contra ele, porque produto
+# promete certeza. Daí papel e tinta em vez de branco e preto, serifa de leitura
+# no texto, e raio de borda zero.
+#
+# Quase tudo aqui é API nativa de tema, e não CSS. A diferença importa: CSS que
+# persegue nome de classe interna do Streamlit quebra na próxima atualização,
+# enquanto estas chaves são contrato público. O pouco de CSS que sobrou está em
+# `painel/componentes.py`, isolado e comentado.
+#
+# Os valores de cor não são escolha de gosto e não devem ser editados soltos:
+# eles saem de `painel/tema.py`, que explica a derivação, e há teste conferindo
+# o contraste de cada um. Este arquivo é a cópia que o Streamlit lê — mudou
+# aqui, muda lá, e o teste reprova se os dois discordarem.
+#
+# O tema é fixo em claro de propósito: o painel é peça de portfólio, e quem
+# avalia precisa ver a mesma tela que foi desenhada, não a preferência de tema
+# do navegador dele.
+
 [theme]
 base = "light"
-primaryColor = "#2a9d8f"
-backgroundColor = "#ffffff"
-secondaryBackgroundColor = "#f4f6f8"
-textColor = "#1f2933"
+
+# Só o NOME da família aqui, sem URL e sem lista de fallback. A documentação
+# desta chave promete aceitar "Nome:url" e uma lista separada por vírgula, mas
+# a implementação (`runtime/theme_util.py`) divide a string no primeiro
+# dois-pontos e trata todo o resto como URL — sem nunca separar por vírgula.
+# Uma lista com duas fontes vira uma URL com dois `family=`, que o próprio
+# Streamlit rejeita, e um sufixo `, serif` entra colado dentro da URL.
+# Quem carrega as três famílias é o `@import` de `painel/componentes.py`.
+font = "Spectral"
+headingFont = "Spectral"
+codeFont = "IBM Plex Mono"
+
+baseFontSize = 16
+codeFontSize = "0.82rem"
+
+# Escala de títulos em razão ~1,25, bem abaixo do padrão do Streamlit (2,75rem
+# no h1). Num documento denso o título grande demais empurra o texto para baixo
+# da dobra e não acrescenta hierarquia nenhuma — a hierarquia já vem do filete.
+headingFontSizes = ["2rem", "1.5rem", "1.2rem", "1.05rem", "0.95rem", "0.85rem"]
+headingFontWeights = [600, 600, 600, 500, 500, 500]
+
+backgroundColor = "#fbfaf8"
+secondaryBackgroundColor = "#f2f1ec"
+textColor = "#1b2a33"
+borderColor = "#e2ddd2"
+
+# Sem cor de destaque na interface. As quatro cores dos quadrantes significam
+# estado da economia; gastar uma quinta cor em botão e foco faria a interface
+# competir com o dado pelo mesmo canal. O acento é a própria tinta, e link se
+# distingue por sublinhado, como em documento impresso.
+primaryColor = "#1b2a33"
+linkColor = "#1b2a33"
+linkUnderline = true
+
+baseRadius = "none"
+buttonRadius = "none"
+showWidgetBorder = true
+showSidebarBorder = true
+
+dataframeHeaderBackgroundColor = "#f2f1ec"
+dataframeBorderColor = "#e2ddd2"
+
+metricValueFontSize = "1.9rem"
+metricValueFontWeight = 600
+
+# Paleta categórica entregue ao Vega. Os gráficos do painel desenham com o tema
+# do Altair de `tema.py`, que traz estas mesmas cores; esta chave cobre qualquer
+# gráfico que caia no tema padrão do Streamlit, para que não exista um segundo
+# conjunto de cores na tela.
+chartCategoricalColors = ["#20a08b", "#c17a00", "#005a9d", "#873745"]
+
+# Os avisos coloridos do Streamlit, retonalizados para o papel. Sem isto o
+# `st.info` entra com o azul de fábrica, que é a única coisa na tela que não
+# pertence a esta paleta — e é justamente a caixa que carrega a frase mais
+# importante da página de Regime.
+blueColor = "#3d5866"
+blueBackgroundColor = "#eef2f4"
+blueTextColor = "#1b2a33"
+greenColor = "#0c8270"
+greenBackgroundColor = "#e9f3f0"
+greenTextColor = "#1b2a33"
+yellowColor = "#a36600"
+yellowBackgroundColor = "#f8f1e3"
+yellowTextColor = "#1b2a33"
+orangeColor = "#a36600"
+orangeBackgroundColor = "#f8f1e3"
+orangeTextColor = "#1b2a33"
+redColor = "#873745"
+redBackgroundColor = "#f7ecee"
+redTextColor = "#1b2a33"
+grayColor = "#64727a"
+grayBackgroundColor = "#f2f1ec"
+grayTextColor = "#1b2a33"
+
+# O painel não tem tema escuro, e isto é o que torna isso verdade.
+#
+# `base = "light"` não basta: o Streamlit manda `[theme]`, `[theme.light]` e
+# `[theme.dark]` como blocos separados, e o navegador em modo escuro cai no
+# bloco escuro — onde tudo que não estiver declarado aqui volta ao padrão de
+# fábrica. O sintoma foi um painel preto com os números em tinta escura por
+# cima, ilegíveis, porque o CSS do projeto assume papel claro.
+#
+# Repetir a paleta clara aqui é deliberado, não descuido: o painel é peça de
+# portfólio, e quem avalia precisa ver a tela que foi desenhada. Um tema escuro
+# de verdade não é a paleta clara invertida — as quatro cores dos quadrantes
+# teriam que ser reescolhidas contra o fundo escuro e revalidadas nos mesmos
+# portões de contraste. Enquanto esse trabalho não for feito, ter um só tema é
+# mais honesto que ter dois, sendo um deles ilegível.
+[theme.dark]
+backgroundColor = "#fbfaf8"
+secondaryBackgroundColor = "#f2f1ec"
+textColor = "#1b2a33"
+borderColor = "#e2ddd2"
+primaryColor = "#1b2a33"
+linkColor = "#1b2a33"
+codeBackgroundColor = "#f2f1ec"
+codeTextColor = "#1b2a33"
+dataframeHeaderBackgroundColor = "#f2f1ec"
+dataframeBorderColor = "#e2ddd2"
+chartCategoricalColors = ["#20a08b", "#c17a00", "#005a9d", "#873745"]
+blueColor = "#3d5866"
+blueBackgroundColor = "#eef2f4"
+blueTextColor = "#1b2a33"
+greenColor = "#0c8270"
+greenBackgroundColor = "#e9f3f0"
+greenTextColor = "#1b2a33"
+yellowColor = "#a36600"
+yellowBackgroundColor = "#f8f1e3"
+yellowTextColor = "#1b2a33"
+orangeColor = "#a36600"
+orangeBackgroundColor = "#f8f1e3"
+orangeTextColor = "#1b2a33"
+redColor = "#873745"
+redBackgroundColor = "#f7ecee"
+redTextColor = "#1b2a33"
+grayColor = "#64727a"
+grayBackgroundColor = "#f2f1ec"
+grayTextColor = "#1b2a33"
+
+[theme.dark.sidebar]
+backgroundColor = "#f2f1ec"
+secondaryBackgroundColor = "#fbfaf8"
+textColor = "#1b2a33"
+borderColor = "#e2ddd2"
+
+[theme.sidebar]
+backgroundColor = "#f2f1ec"
+secondaryBackgroundColor = "#fbfaf8"
+borderColor = "#e2ddd2"
+baseRadius = "none"
+headingFontSizes = ["1.15rem", "1rem", "0.95rem", "0.9rem", "0.85rem", "0.8rem"]
 
 [server]
 headless = true

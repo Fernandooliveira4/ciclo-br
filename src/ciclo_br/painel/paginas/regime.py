@@ -53,19 +53,14 @@ def renderizar() -> None:
         return
 
     _estado(info)
-    st.divider()
     _numeros(info)
-    st.divider()
     _mapa()
-    st.divider()
     _historia()
-    st.divider()
     _agenda()
 
 
 def _estado(info: dict) -> None:
-    st.markdown(
-        f"## {componentes.pilula(info['quadrante'])}", unsafe_allow_html=True)
+    componentes.estado(info["quadrante"])
     st.markdown(
         f"Desde **{formato.mes_ano(info['desde'])}** "
         f"({formato.meses(info['meses_no_quadrante'])}). "
@@ -95,10 +90,15 @@ def _glossario(vigente: str | None) -> None:
     Lado a lado e não em lista: os quatro são combinações de duas perguntas, e
     ver os quatro juntos é o que mostra que são quatro respostas do mesmo par —
     e não quatro rótulos avulsos que o leitor teria que decorar.
+
+    Sem moldura em volta de cada um: quatro cartões idênticos lado a lado é a
+    forma que diz "quatro objetos separados", e estes quatro são o contrário
+    disso — são as quatro saídas de um mesmo par de perguntas. A pílula colorida
+    já separa o suficiente.
     """
     st.markdown("**O que cada um desses nomes quer dizer**")
     for coluna, nome in zip(st.columns(4), graficos.ORDEM, strict=True):
-        with coluna.container(border=True):
+        with coluna:
             marca = " &nbsp;·&nbsp; **agora**" if nome == vigente else ""
             st.markdown(
                 f"{componentes.pilula(nome)}{marca}", unsafe_allow_html=True)
@@ -108,49 +108,42 @@ def _glossario(vigente: str | None) -> None:
 def _numeros(info: dict) -> None:
     config = dados.configuracao_vigente()
 
-    a, b, c, d = st.columns(4)
-    a.metric(
-        "Crescimento",
-        formato.numero(info["eixo_crescimento"], 1, sinal=True, sufixo="%"),
-        delta=f"corte em {formato.numero(info['corte_crescimento'], 1)}",
-        delta_color="off",
-        delta_arrow="off",
-        help="IBC-Br dessazonalizado, momentum 3m/3m anualizado. O corte é zero: "
-             "a pergunta é se a atividade está encolhendo.",
-    )
-    b.metric(
-        "Inflação",
-        formato.numero(info["eixo_inflacao"], 1, sufixo="%"),
-        delta=f"corte em {formato.numero(info['corte_inflacao'], 1)}",
-        delta_color="off",
-        delta_arrow="off",
-        help="Núcleo do IPCA dessazonalizado por nós em janela expansiva, "
-             "3 meses compostos e anualizados. O corte é a mediana do próprio "
-             "histórico até aquele mês — não a meta.",
-    )
-    c.metric(
-        "Trocas de quadrante",
-        f"{info['trocas_com_persistencia']}",
-        delta=f"{info['trocas_sem_persistencia']} sem a regra de persistência",
-        delta_color="off",
-        delta_arrow="off",
-        help="A regra de persistência exige o novo sinal confirmado em cada eixo "
-             "por 3 meses seguidos antes de trocar o quadrante.",
-    )
+    itens = [
+        ("Crescimento",
+         formato.numero(info["eixo_crescimento"], 1, sinal=True, sufixo="%"),
+         f"corte em {formato.numero(info['corte_crescimento'], 1)}"),
+        ("Inflação",
+         formato.numero(info["eixo_inflacao"], 1, sufixo="%"),
+         f"corte em {formato.numero(info['corte_inflacao'], 1)}"),
+        ("Trocas de quadrante",
+         f"{info['trocas_com_persistencia']}",
+         f"{info['trocas_sem_persistencia']} sem a regra de persistência"),
+    ]
     if config:
-        d.metric(
+        itens.append((
             "Recessões acompanhadas",
             f"{int(config['recessoes_detectadas'])} de "
             f"{int(config['recessoes_avaliadas'])}",
-            delta=f"sinal ligado em "
-                  f"{formato.numero(config['fracao_da_janela_com_sinal'] * 100, 0)}% "
-                  f"da janela",
-            delta_color="off",
-            delta_arrow="off",
-            help="Medido contra a cronologia do CODACE. A fração da janela com o "
-                 "sinal ligado está aqui de propósito: sem ela, 'detectou todas' "
-                 "não informa nada.",
-        )
+            f"sinal ligado em "
+            f"{formato.numero(config['fracao_da_janela_com_sinal'] * 100, 0)}% da janela",
+        ))
+    componentes.numeros(itens)
+
+    # O que num painel de produto estaria escondido atrás de uma bolinha de
+    # ajuda. Aqui fica na tela: é a definição dos dois números, e sem ela o
+    # leitor não sabe contra o que o valor está sendo comparado.
+    st.caption(
+        "**Crescimento** é o IBC-Br dessazonalizado em momentum 3m/3m anualizado, "
+        "comparado a zero — a pergunta é se a atividade está encolhendo. "
+        "**Inflação** é o núcleo do IPCA dessazonalizado por nós em janela "
+        "expansiva, três meses compostos e anualizados, comparado à mediana do "
+        "próprio histórico até aquele mês — não à meta. As **trocas** contam as "
+        "viradas já confirmadas: a regra exige o sinal novo por "
+        f"{regime_mod.MESES_PERSISTENCIA} meses seguidos em cada eixo. As "
+        "**recessões** são medidas contra a cronologia do CODACE, e a fração da "
+        "janela com o sinal ligado está ali de propósito: sem ela, "
+        "\"detectou todas\" não informa nada."
+    )
 
     if config:
         st.info(
@@ -168,13 +161,18 @@ def _numeros(info: dict) -> None:
 
 
 def _mapa() -> None:
-    st.subheader("Onde a economia está, e para onde estava indo")
+    componentes.secao("Onde a economia está, e para onde estava indo")
     reg = dados.regime_mensal()
 
     grafico, leitura = st.columns([5, 4])
     with grafico:
-        st.altair_chart(
-            graficos.mapa_de_quadrantes(reg, meses=MESES_NO_MAPA), width="stretch")
+        componentes.figura(
+            graficos.mapa_de_quadrantes(reg, meses=MESES_NO_MAPA),
+            f"Trajetória mensal no plano crescimento × inflação, últimos "
+            f"{MESES_NO_MAPA} meses. Os dois eixos medem a distância até o corte "
+            f"do respectivo eixo, então a fronteira entre quadrantes é o zero em "
+            f"todos os meses.",
+        )
     with leitura:
         st.markdown(
             f"**Cada bolinha é um mês** — são os últimos {MESES_NO_MAPA}. A "
@@ -209,18 +207,16 @@ def _mapa() -> None:
 
 
 def _historia() -> None:
-    st.subheader("A série inteira")
-    st.caption(
-        "As faixas cinzas são as recessões datadas pelo CODACE. A linha "
-        "tracejada em cada painel é o corte daquele eixo — reta no zero para "
-        "crescimento, móvel para inflação. A tarja embaixo é o quadrante "
-        "vigente, já com a regra de persistência aplicada."
-    )
+    componentes.secao("A série inteira")
     reg = dados.regime_mensal()
     episodios = dados.episodios(reg)
-    st.altair_chart(
+    componentes.figura(
         graficos.historia_do_regime(reg, episodios, dados.recessoes()),
-        width="stretch",
+        "Os dois eixos e o quadrante vigente desde 2003. As faixas cinzas são as "
+        "recessões datadas pelo CODACE; a linha tracejada em cada painel é o "
+        "corte daquele eixo — reta no zero para crescimento, móvel para "
+        "inflação, porque é a mediana expansiva do próprio histórico. A tarja "
+        "embaixo é o quadrante vigente, já com a regra de persistência aplicada.",
     )
 
     with st.expander("Os episódios, um a um"):
@@ -237,7 +233,7 @@ def _historia() -> None:
 
 
 def _agenda() -> None:
-    st.subheader("Próximas divulgações")
+    componentes.secao("Próximas divulgações")
     proximas = dados.proximas_divulgacoes(limite=6)
     if proximas.empty:
         st.caption("Nenhuma divulgação futura no calendário versionado.")

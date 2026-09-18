@@ -36,6 +36,8 @@ def main() -> None:
                 default=indice == 0)
         for indice, (funcao, titulo, icone, caminho) in enumerate(PAGINAS)
     ])
+    # Antes da barra lateral e da página: as duas desenham com estas regras.
+    componentes.estilo()
     componentes.barra_lateral()
     navegacao.run()
 

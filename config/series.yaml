@@ -26,6 +26,17 @@ fontes:
     limite: >
       Desde 26/03/2025 cada consulta cobre no máximo 10 anos; o cliente fatia em
       janelas de 9 anos.
+  ibge:
+    nome: API de agregados do IBGE (tabelas do SIDRA)
+    base_url: https://servicodados.ibge.gov.br/api/v3/agregados/{tabela}/periodos/all/variaveis/{variavel}
+    doc: https://servicodados.ibge.gov.br/api/docs/agregados
+    nota: >
+      Entrou no projeto porque o SGS deixou de servir: a familia 22xxx das Contas
+      Nacionais so publica indice de volume, e as series a precos correntes foram
+      descontinuadas em 2022. Sem precos correntes nao existe "% do PIB", que e a
+      unidade da taxa de investimento. Ao contrario do SGS, esta API publica o
+      nome da variavel e da categoria, entao a identificacao nao depende de
+      conferencia as cegas - mas a ficha registra a conferencia mesmo assim.
   focus:
     nome: API de Expectativas de Mercado do Banco Central (Olinda/OData)
     base_url: https://olinda.bcb.gov.br/olinda/servico/Expectativas/versao/v1/odata/
@@ -305,6 +316,87 @@ series:
     notas: >
       Unica medida de surpresa do lado do crescimento: nao existe consenso Focus para o IBC-Br.
 
+  # ------------------------------------------------------- CONTAS NACIONAIS
+  # As tres saem da mesma tabela e da mesma divulgacao, e existem para uma conta
+  # so: as duas razoes em % do PIB da pagina de Investimento. Nenhuma delas e
+  # medida de atividade - para isso o projeto usa `pib`, que e indice de volume.
+
+  - id: pib_corrente
+    fonte: ibge
+    tabela: 1846
+    variavel: 585
+    classificacao: 11255
+    categoria: 90707
+    nome: PIB a precos de mercado - valores a precos correntes
+    bloco: contas_nacionais
+    unidade: R$ milhoes correntes
+    periodicidade: trimestral
+    ajuste_sazonal: nao_aplicavel
+    inicio: 1996-01
+    frescor_max_dias: 260   # o trimestre Q sai ~65 dias depois de fechar
+    papel: contexto
+    transformacao: denominador das razoes em % do PIB (soma movel de 4 trimestres)
+    verificacao: >
+      O SGS foi testado primeiro e descartado: a familia 22xxx das Contas
+      Nacionais so tem indice de volume, e as series a precos correntes pararam
+      em 2022. Conferido em 18/09/2026 contra a divulgacao do 2T2026: PIB
+      3425728, FBCF 552092 e consumo do governo 667666 (R$ milhoes), o que da
+      16,1% e 19,5% do PIB no trimestre isolado - os numeros que o IBGE publica.
+      Cobertura 1996Q1 a 2026Q2, 122 trimestres, sem valor ausente nas tres
+      categorias.
+    notas: >
+      Denominador, e nunca medida de atividade: a variacao deste indice e
+      crescimento nominal, nao real. Para crescimento use `pib` (indice
+      encadeado de volume, SGS 22099), que e outra serie e responde outra
+      pergunta.
+
+  - id: fbcf_corrente
+    fonte: ibge
+    tabela: 1846
+    variavel: 585
+    classificacao: 11255
+    categoria: 93406
+    nome: Formacao bruta de capital fixo - valores a precos correntes
+    bloco: contas_nacionais
+    unidade: R$ milhoes correntes
+    periodicidade: trimestral
+    ajuste_sazonal: nao_aplicavel
+    inicio: 1996-01
+    frescor_max_dias: 260
+    papel: contexto
+    transformacao: numerador da taxa de investimento (soma movel de 4 trimestres sobre o PIB)
+    verificacao: >
+      Mesma conferencia de `pib_corrente`, feita em 18/09/2026. A categoria
+      devolvida pela API e conferida a cada coleta contra a pedida, porque trocar
+      93406 por 93405 produziria um arquivo plausivel que nenhum portao pegaria.
+    notas: >
+      Soma o investimento publico e o privado. Isso importa na leitura da pagina:
+      obra do governo sobe esta linha, nao a de consumo da administracao publica.
+
+  - id: consumo_governo_corrente
+    fonte: ibge
+    tabela: 1846
+    variavel: 585
+    classificacao: 11255
+    categoria: 93405
+    nome: Despesa de consumo da administracao publica - valores a precos correntes
+    bloco: contas_nacionais
+    unidade: R$ milhoes correntes
+    periodicidade: trimestral
+    ajuste_sazonal: nao_aplicavel
+    inicio: 1996-01
+    frescor_max_dias: 260
+    papel: contexto
+    transformacao: numerador do gasto publico em % do PIB (soma movel de 4 trimestres)
+    verificacao: >
+      Mesma conferencia de `pib_corrente`, feita em 18/09/2026.
+    notas: >
+      Remuneracao de servidores e consumo intermediario do governo. NAO e gasto
+      publico total: ficam de fora as transferencias (Previdencia, Bolsa
+      Familia), os juros da divida e o investimento publico, que esta em
+      `fbcf_corrente`. Quem le esta serie como "tamanho do Estado" esta vendo
+      talvez metade dele, e a pagina de Investimento diz isso na tela.
+
 # ---------------------------------------------------------------------------
 # Calendario de divulgacoes do IBGE (API v3 de calendario).
 # Papel auxiliar: alimenta o painel "proximas divulgacoes" e adensa o polling.
@@ -316,4 +408,4 @@ calendario:
     9256: [ipca, ipca_12m]          # Indice Nacional de Precos ao Consumidor Amplo
     9171: [desocupacao]             # PNAD Continua - divulgacao mensal
     9294: [pim, pim_sa]             # PIM-PF Brasil
-    9300: [pib]                     # Contas Nacionais Trimestrais (PIB)
+    9300: [pib, pib_corrente, fbcf_corrente, consumo_governo_corrente]  # Contas Nacionais Trimestrais

@@ -13,7 +13,10 @@ A janela retroativa difere por fonte. No SGS ela é contada sobre a data de
 referência, porque o que se procura é o Banco Central ter mexido num mês antigo.
 No Focus ela é contada sobre a data de coleta, porque o passado do Focus é
 imutável — cada coleta é um fato datado, e só interessa o que veio depois da
-última que já temos.
+última que já temos. No IBGE não há janela: as Contas Nacionais revisam o
+histórico inteiro a cada divulgação, e a série cabe numa requisição só, então
+recortar os últimos meses descartaria de graça justamente as revisões antigas,
+que são as que ninguém mais registra.
 """
 
 from __future__ import annotations
@@ -24,8 +27,8 @@ import logging
 import sys
 
 from .. import storage
-from ..config import Serie, catalogo, series_da_fonte
-from . import focus, sgs
+from ..config import FONTES, Serie, catalogo, series_da_fonte
+from . import focus, ibge_agregados, sgs
 
 log = logging.getLogger("ciclo_br.ingest")
 
@@ -52,6 +55,11 @@ def _inicio_incremental(serie: Serie) -> dt.date:
     if vigente.empty:
         return _inicio_da_ficha(serie)
 
+    if serie.fonte == "ibge":
+        # Sem janela: ver a docstring do módulo. A revisão das Contas Nacionais
+        # reescreve anos, não meses, e é ela que dá conteúdo à aba de Revisões.
+        return _inicio_da_ficha(serie)
+
     if serie.fonte == "focus":
         ultima_coleta = max(vigente["data_coleta"]).date()
         candidato = ultima_coleta - dt.timedelta(days=DIAS_RETROATIVOS)
@@ -72,14 +80,23 @@ def _baixar(serie: Serie, inicio: dt.date):
             base_calculo=serie.base_calculo if serie.base_calculo is not None else 0,
             desde=inicio,
         )
+    if serie.fonte == "ibge":
+        return ibge_agregados.buscar(
+            serie.tabela,
+            serie.variavel,
+            serie.categoria,
+            classificacao=serie.classificacao,
+            periodicidade=serie.periodicidade,
+            desde=inicio,
+        )
     raise ValueError(f"série {serie.id}: fonte desconhecida {serie.fonte!r}")
 
 
 def ingerir(serie: Serie, *, execucao_id: str, backfill: bool) -> storage.ResultadoAnexo:
     inicio = _inicio_da_ficha(serie) if backfill else _inicio_incremental(serie)
     iniciada_em = dt.datetime.now(dt.UTC)
-    alvo = serie.codigo if serie.fonte == "sgs" else serie.indicador
-    log.info("%s (%s %s) desde %s", serie.id, serie.fonte.upper(), alvo, inicio)
+    log.info("%s (%s %s) desde %s", serie.id, serie.fonte.upper(),
+             serie.referencia_na_fonte, inicio)
 
     try:
         observacoes = _baixar(serie, inicio)
@@ -101,7 +118,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Ingestão de séries do BCB (SGS e Focus)")
     parser.add_argument("--serie", action="append", dest="series",
                         help="id da série (repetível). Padrão: todas.")
-    parser.add_argument("--fonte", choices=["sgs", "focus"],
+    parser.add_argument("--fonte", choices=sorted(FONTES),
                         help="restringe a uma fonte")
     parser.add_argument("--backfill", action="store_true",
                         help="baixa desde o início declarado na ficha")
@@ -126,7 +143,12 @@ def main(argv: list[str] | None = None) -> int:
     elif args.fonte:
         alvos = series_da_fonte(args.fonte)
     else:
-        alvos = series_da_fonte("sgs") + series_da_fonte("focus")
+        # Derivado do catálogo, e não escrito à mão, porque é assim que o
+        # agendamento diário chama. Com a lista fixa, uma fonte nova coletava no
+        # backfill manual, passava nos oito portões e sumia do agendamento — e o
+        # sintoma só aparecia meses depois, como portão de frescor vermelho sem
+        # causa aparente. Há teste travando a equivalência com o catálogo.
+        alvos = [s for s in todas.values() if s.implementada]
 
     execucao_id = storage.novo_execucao_id()
     log.info("execução %s | %d série(s) | modo %s",

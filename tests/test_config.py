@@ -143,3 +143,47 @@ def test_nenhum_workflow_instala_dependencia_por_faixa():
             assert "requirements-ci.txt" in texto, (
                 f"{fluxo.name}: instala sem passar pelas versoes fixas"
             )
+
+
+def test_serie_ibge_sem_categoria_e_rejeitada(tmp_path):
+    caminho = tmp_path / "series.yaml"
+    caminho.write_text(yaml.safe_dump({"series": [{
+        "id": "x", "fonte": "ibge", "tabela": 1846, "variavel": 585,
+        "classificacao": 11255, "nome": "X", "bloco": "b", "unidade": "u",
+        "periodicidade": "trimestral", "ajuste_sazonal": "nao_aplicavel",
+        "papel": "contexto",
+    }]}), encoding="utf-8")
+    with pytest.raises(config.FichaInvalida, match="categoria"):
+        config.carregar(caminho)
+
+
+def test_fonte_desconhecida_e_rejeitada(tmp_path):
+    """Sem esta regra, uma fonte digitada errada passa pela ficha e só explode em
+    `run._baixar`, dentro do try/except que registra e segue: a série some do
+    pipeline sem derrubar nada e sem ninguém notar."""
+    caminho = tmp_path / "series.yaml"
+    caminho.write_text(yaml.safe_dump({"series": [{
+        "id": "x", "fonte": "sgss", "codigo": 1, "nome": "X", "bloco": "b",
+        "unidade": "u", "periodicidade": "mensal", "ajuste_sazonal": "origem",
+        "papel": "contexto",
+    }]}), encoding="utf-8")
+    with pytest.raises(config.FichaInvalida, match="fonte"):
+        config.carregar(caminho)
+
+
+def test_toda_serie_ibge_declara_a_tabela_inteira():
+    for serie in config.carregar().values():
+        if serie.fonte != "ibge":
+            continue
+        assert isinstance(serie.tabela, int), serie.id
+        assert isinstance(serie.variavel, int), serie.id
+        assert isinstance(serie.classificacao, int), serie.id
+        assert isinstance(serie.categoria, int), serie.id
+
+
+def test_toda_serie_sabe_dizer_como_e_identificada_na_fonte():
+    """`codigo or indicador` estava escrito em três lugares e nenhum sabia o que
+    fazer com uma fonte que identifica a série por uma combinação de números."""
+    for serie in config.carregar().values():
+        assert serie.referencia_na_fonte, serie.id
+        assert "None" not in serie.referencia_na_fonte, serie.id

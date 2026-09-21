@@ -47,6 +47,7 @@ def main() -> None:
     ])
     # Antes da barra lateral e da página: as duas desenham com estas regras.
     componentes.estilo()
+    componentes.marca()
     componentes.barra_lateral()
     navegacao.run()
 

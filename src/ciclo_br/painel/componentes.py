@@ -281,6 +281,21 @@ def figura(grafico, legenda: str, *, numerar: bool = True) -> None:
     )
 
 
+def marca() -> None:
+    """A marca dos quadrantes no topo da barra lateral.
+
+    Fica acima da navegação, no espaço que o Streamlit reserva para logotipo.
+    O desenho vem de `tema.marca_svg()`, montado a partir da paleta — ver lá o
+    motivo de não ser um arquivo.
+
+    A marca é **estática**: ela mostra os quatro quadrantes, não o vigente. Uma
+    marca que acendesse o quadrante do momento repetiria, só que em cor pura, o
+    que a pílula logo abaixo já diz por escrito — e para quem não separa as
+    quatro cores ela não diria nada. Redundância que piora não é redundância.
+    """
+    st.logo(tema.marca_svg(), size="large")
+
+
 def barra_lateral() -> None:
     """Estado dos arquivos que o painel lê, sempre à vista.
 

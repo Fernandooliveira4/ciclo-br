@@ -155,3 +155,43 @@ def _tema_ciclo_br() -> alt.theme.ThemeConfig:
             "text": {"font": FAMILIA_DADOS, "color": TINTA},
         }
     }
+
+
+# ------------------------------------------------------------------ marca
+# Onde cada quadrante cai no plano, com crescimento no eixo x e inflação no y.
+# É a mesma disposição de `graficos._regioes`, e está declarada aqui porque a
+# marca do painel precisa concordar com o mapa: uma marca que trocasse o azul
+# de lado ensinaria ao leitor o contrário do que o gráfico mostra.
+CELULAS_DA_MARCA = {
+    # nome:            (coluna, linha)  — linha 0 é o topo, inflação alta
+    "Estagflação":     (0, 0),
+    "Aquecimento":     (1, 0),
+    "Desaceleração":   (0, 1),
+    "Expansão":        (1, 1),
+}
+
+
+def marca_svg(*, vao: int = 2, lado: int = 32) -> str:
+    """A marca do painel: o mapa de quadrantes reduzido a quatro células.
+
+    **Por que é gerada, e não um arquivo `.svg` no repositório.** Um SVG guardado
+    traria os quatro hexadecimais escritos dentro dele, que é exatamente o
+    problema que este módulo existe para resolver — mudar a paleta voltaria a ser
+    uma caçada, e a caçada esqueceria o logotipo. Gerando a partir de `PALETA`, a
+    marca não tem como divergir dos gráficos.
+
+    A sarjeta central não é margem: ela é a linha do zero dos dois eixos, que no
+    mapa de quadrantes aparece como o cruzamento dos cortes. Por isso ela vaza
+    até a borda em vez de separar as células por dentro.
+    """
+    celula = (lado - vao) / 2
+    retangulos = "".join(
+        f'<rect x="{coluna * (celula + vao):g}" y="{linha * (celula + vao):g}" '
+        f'width="{celula:g}" height="{celula:g}" fill="{PALETA[nome]}"/>'
+        for nome, (coluna, linha) in CELULAS_DA_MARCA.items()
+    )
+    return (
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {lado} {lado}" '
+        f'role="img" aria-label="ciclo-br: os quatro quadrantes de regime">'
+        f"{retangulos}</svg>"
+    )

@@ -841,6 +841,17 @@ deuteranopia, que é a confusão clássica entre vermelho e verde; o que os sepa
 não é o matiz, é a folga de luminosidade. Por isso o vermelho de Estagflação é
 mais fechado do que um vermelho de alerta seria.
 
+A marca do painel é o próprio mapa de quadrantes reduzido a quatro células, com
+a sarjeta central fazendo o papel das duas linhas de corte. Ela é **gerada** a
+partir da paleta, e não guardada como arquivo `.svg`: um arquivo traria os quatro
+hexadecimais escritos dentro, que é a caçada que `tema.py` existe para evitar. E
+ela é **estática** — mostra os quatro quadrantes, não o vigente. Acender o
+quadrante do momento repetiria em cor pura o que a pílula logo abaixo já diz por
+escrito, e para quem não separa as quatro cores não diria nada. Dois testes
+travam o arranjo: um confere que as quatro cores saem de `PALETA`, outro confere
+que cada quadrante está na mesma posição que o gráfico lhe dá — um hexadecimal
+certo no lugar trocado passaria por qualquer portão de cor.
+
 A cor é declarada em `painel/tema.py`, junto com a derivação, e copiada em
 `.streamlit/config.toml`, que o Streamlit lê e que não tem como importar Python.
 Três testes sustentam o arranjo: um confere o contraste de cada tom nos dois
@@ -999,3 +1010,4 @@ sido publicado naquela data.
 | 2026-09-18 | Taxa de investimento em soma móvel de 4 trimestres, não no trimestre isolado | numerador e denominador do mesmo período, a inflação cancela na razão e a sazonalidade some sem dessazonalizador (seção 4d) |
 | 2026-09-18 | A página de Investimento declara o que o gráfico não prova, antes de o leitor concluir | duas linhas com correlação de −0,48 produzem sozinhas uma leitura de crowding out que o dado não sustenta (seção 4d.1) |
 | 2026-09-18 | Alvos da ingestão padrão derivados do catálogo, não escritos à mão | com a lista fixa, fonte nova passava nos oito portões e sumia do agendamento diário; o sintoma aparecia meses depois como frescor vermelho |
+| 2026-09-20 | A marca é gerada da paleta e não acende o quadrante vigente | um `.svg` versionado devolveria os hexadecimais à mão, e uma marca de estado duplicaria a pílula por um canal que exclui quem não separa as cores (seção 8.6) |

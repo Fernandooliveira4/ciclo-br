@@ -649,3 +649,37 @@ def test_a_pagina_de_investimento_nomeia_as_duas_series():
     tabela = tabela_comparada()
     assert set(tabela["serie"]) == {"Taxa de investimento", "Consumo do governo"}
     assert not tabela.empty
+
+
+# ------------------------------------------------------------------- marca
+
+def test_a_marca_sai_da_paleta_e_traz_os_quatro_quadrantes():
+    """A marca é a única peça de cor que não passa por gráfico nem por pílula.
+
+    Sem este teste ela seria o lugar onde um hexadecimal escrito à mão voltaria
+    a existir — exatamente o que `tema.py` foi criado para impedir.
+    """
+    import re
+
+    from ciclo_br.painel import tema
+
+    cores = re.findall(r'fill="(#[0-9a-f]{6})"', tema.marca_svg())
+    assert len(cores) == 4, "a marca deixou de ter quatro células"
+    assert set(cores) == set(tema.PALETA.values())
+
+
+def test_a_marca_poe_cada_quadrante_onde_o_grafico_poe():
+    """Marca e mapa não podem discordar sobre onde fica cada regime.
+
+    Uma marca com o azul do outro lado ensinaria ao leitor o contrário do que o
+    gráfico mostra, e nenhum portão de cor pegaria isso: os hexadecimais
+    estariam todos certos, só que nos lugares trocados.
+    """
+    from ciclo_br.painel import tema
+
+    regioes = graficos._regioes([-1.0, 1.0], [-1.0, 1.0])
+    for _, faixa in regioes.iterrows():
+        coluna, linha = tema.CELULAS_DA_MARCA[faixa["quadrante"]]
+        # Coluna 1 é a direita (crescimento alto); linha 0 é o topo (inflação alta).
+        assert coluna == (1 if faixa["x"] >= 0 else 0), faixa["quadrante"]
+        assert linha == (0 if faixa["y"] >= 0 else 1), faixa["quadrante"]
